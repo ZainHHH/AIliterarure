@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reel Prompt Studio</title>
+<meta name="description" content="Plan short-form videos and write detailed prompts. Runs entirely in your browser.">
+<link rel="icon" href="data:,">
+<style>
+:root{
+  color-scheme:light;
+  --ink:#17123b;--ink-2:#4a4470;--paper:#fffdf7;--lilac:#dcd6ff;--lilac-2:#efecff;
+  --hot:#c9134f;--sun:#ffcb2e;--mint:#14b892;--sky:#7fc8ff;
+  --ok:#0b6b52;--warn:#8a4b00;--bad:#b00d3f;
+  --ui:"Avenir Next","Segoe UI Variable Text","Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+  --display:Impact,Haettenschweiler,"Arial Narrow Bold","Franklin Gothic Demi Cond","Liberation Sans Narrow","DejaVu Sans Condensed",sans-serif;
+  --line:2px solid var(--ink);
+  --rw:292px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-padding-top:16px}
+body{margin:0;background:var(--lilac);color:var(--ink);font:400 16px/1.5 var(--ui);overflow-x:hidden}
+h1,h2,h3,h4,p{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid var(--hot);outline-offset:2px;border-radius:3px}
+.stage :focus-visible,.top :focus-visible{outline-color:var(--sun)}
+.vh{position:absolute!important;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:12px;top:-60px;background:var(--sun);padding:10px 14px;z-index:50;font-weight:700;color:var(--ink)}
+.skip:focus{top:12px}
+
+/* Film-strip header */
+.top{background:var(--ink);color:#fff;position:relative;padding:30px clamp(16px,3vw,36px)}
+.top::before,.top::after{content:"";position:absolute;left:0;right:0;height:10px;
+  background:repeating-linear-gradient(90deg,var(--lilac) 0 14px,transparent 14px 34px)}
+.top::before{top:8px}.top::after{bottom:8px}
+.top-in{display:flex;flex-wrap:wrap;align-items:center;gap:14px 30px;max-width:1720px;margin:0 auto}
+.mark{font:700 clamp(38px,6vw,68px)/.95 var(--display);font-synthesis-weight:none;letter-spacing:.01em;display:flex;flex-wrap:wrap;gap:0 .26em;align-items:baseline}
+.mark b{font-weight:700;background:var(--sun);color:var(--ink);padding:.02em .16em .06em;transform:rotate(-2deg);display:inline-block}
+.top-note{flex:1 1 300px;max-width:58ch;font-size:15px;color:#e6e2ff}
+.top-note strong{color:#fff;font-weight:600}
+
+/* Buttons */
+.btn{appearance:none;border:var(--line);background:var(--paper);padding:9px 15px;font-weight:700;font-size:15px;line-height:1.2;cursor:pointer;border-radius:8px;box-shadow:3px 3px 0 var(--ink);transition:transform .08s,box-shadow .08s;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;color:var(--ink);min-height:44px}
+.btn:hover{background:var(--lilac-2)}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.btn.go{background:var(--hot);color:#fff}.btn.go:hover{background:#ae0f43}
+.btn.alt{background:var(--sun)}.btn.alt:hover{background:#ffd95e}
+.btn.small{padding:6px 10px;font-size:14px;box-shadow:2px 2px 0 var(--ink);min-height:38px}
+.btn.quiet{box-shadow:none;border-width:1.5px;background:transparent}
+.btn[aria-pressed="true"]{background:var(--ink);color:#fff}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.top .btn{border-color:#fff}
+
+/* Workspace */
+.work{display:grid;grid-template-columns:350px minmax(0,1fr) 372px;grid-template-areas:"brief plan stage";align-items:start;max-width:1720px;margin:0 auto}
+.brief{grid-area:brief;padding:22px clamp(16px,2vw,24px) 0;background:var(--paper);border-right:var(--line);min-height:100%}
+.plan{grid-area:plan;padding:22px clamp(16px,2vw,28px) 48px;min-width:0}
+.stage{grid-area:stage;background:var(--ink);color:#fff;padding:22px 22px 26px 40px;position:sticky;top:0;max-height:100vh;overflow-y:auto;align-self:start;min-height:100vh}
+.stage::before{content:"";position:absolute;left:12px;top:0;bottom:0;width:12px;background:repeating-linear-gradient(180deg,var(--lilac) 0 14px,transparent 14px 34px)}
+h2.sec{font:700 30px/1.05 var(--display);font-synthesis-weight:none;letter-spacing:.015em}
+
+/* Form */
+fieldset{border:0;padding:0;margin:0}
+.group{padding:16px 0 18px;border-bottom:1.5px dashed #b9b2dd}
+.group:last-of-type{border-bottom:0}
+.group>legend,.group>h3{font-weight:800;font-size:18px;padding:0;margin-bottom:8px}
+.f{margin-top:12px}
+.f>label,.f>.lab,fieldset.f>legend{display:block;font-weight:700;font-size:15px;margin-bottom:5px;padding:0}
+.opt{font-weight:400;color:var(--ink-2)}
+.help{font-size:14px;color:var(--ink-2);margin-top:4px}
+.err{font-size:14px;color:var(--bad);font-weight:700;margin-top:5px}
+.err::before{content:"! "}
+input[type=text],select,textarea{width:100%;background:#fff;border:1.5px solid var(--ink);border-radius:7px;padding:9px 10px;min-height:44px}
+textarea{resize:vertical;line-height:1.45;display:block;field-sizing:content}
+[aria-invalid=true]{border-color:var(--bad);border-width:2.5px}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pills label{position:relative;cursor:pointer}
+.pills input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer}
+.pills span{display:flex;align-items:center;min-height:38px;padding:6px 11px;border:1.5px solid var(--ink);border-radius:20px;font-size:14.5px;font-weight:600;background:#fff}
+.pills label:hover span{background:var(--lilac-2)}
+.pills input:checked+span{background:var(--ink);color:#fff}
+.pills input:checked+span::before{content:"\2713\00a0";font-weight:800;color:var(--sun)}
+.pills input:focus-visible+span{outline:3px solid var(--hot);outline-offset:2px}
+.kw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.actions{position:sticky;bottom:0;background:var(--paper);padding:12px 0 16px;border-top:var(--line);display:grid;grid-template-columns:1fr 1fr;gap:9px;z-index:5;margin-top:4px}
+.actions .wide{grid-column:1/-1}
+.draftbox{padding:12px 0 22px;font-size:14px;color:var(--ink-2)}
+.draftbox .row{margin-bottom:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.spread{justify-content:space-between}
+
+/* Plan tabs: binder index */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stale{background:var(--sun);border:var(--line);border-radius:8px;padding:9px 12px;font-weight:600;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;position:relative;z-index:1;padding-left:6px}
+.tab{appearance:none;border:var(--line);border-bottom:0;background:var(--lilac-2);padding:9px 13px 8px;font-weight:700;font-size:15px;border-radius:9px 9px 0 0;cursor:pointer;min-height:44px;color:var(--ink)}
+.tab:hover{background:#fff}
+.tab[aria-selected=true]{background:var(--paper);box-shadow:0 3px 0 var(--paper);position:relative;z-index:2}
+.tab[aria-selected=true]::before{content:"\25B8\00a0";color:var(--hot)}
+.sheet{background:var(--paper);border:var(--line);border-radius:10px;padding:clamp(16px,2vw,26px);min-height:420px;box-shadow:6px 6px 0 var(--ink)}
+.lede{max-width:66ch;color:var(--ink-2);margin:6px 0 14px}
+.empty{text-align:left;max-width:52ch;padding:40px 0}
+.empty h2{font:700 40px/1.05 var(--display);font-synthesis-weight:none;margin-bottom:10px;letter-spacing:.01em}
+.empty p{margin-bottom:16px}
+
+/* Rows */
+.rowitem{display:grid;grid-template-columns:118px minmax(0,1fr) auto;gap:10px 14px;padding:14px 0;border-top:1.5px dashed #b9b2dd;align-items:start}
+.rowitem:first-of-type{border-top:0}
+.sticker{display:inline-block;font-size:13.5px;font-weight:800;padding:4px 8px;border:1.5px solid var(--ink);transform:rotate(-2deg);background:var(--sun);line-height:1.2}
+.s-1{background:var(--sun)}.s-2{background:#ffc2d4}.s-3{background:#b5f0de}.s-4{background:#c5e4ff}.s-5{background:#e0d4ff}
+.why{font-size:14px;color:var(--ink-2);margin-top:5px}
+.stack{display:flex;flex-direction:column;gap:7px;align-items:stretch}
+.pin{appearance:none;background:transparent;border:1.5px solid var(--ink);border-radius:7px;padding:5px 9px;cursor:pointer;font-size:14px;font-weight:700;display:inline-flex;gap:5px;align-items:center;min-height:38px;white-space:nowrap;color:var(--ink)}
+.pin svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2}
+.pin[aria-pressed=true]{background:var(--sun)}
+.pin[aria-pressed=true] svg{fill:currentColor}
+.mini-lab{display:block;font-size:13.5px;font-weight:700;margin-bottom:3px}
+
+/* Storyboard */
+.strip-head{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:center;margin-bottom:8px}
+.total{font-weight:800}
+.strip{display:flex;border:var(--line);background:var(--ink);padding:9px 0;border-radius:6px;position:relative;margin-bottom:16px;overflow:hidden}
+.strip::before,.strip::after{content:"";position:absolute;left:0;right:0;height:5px;background:repeating-linear-gradient(90deg,#fff 0 7px,transparent 7px 16px)}
+.strip::before{top:2px}.strip::after{bottom:2px}
+.seg{appearance:none;border:0;border-right:2px solid var(--ink);background:var(--lilac);min-width:0;padding:8px 2px;font-weight:800;font-size:14px;cursor:pointer;color:var(--ink);overflow:hidden;white-space:nowrap}
+.seg:last-child{border-right:0}.seg:hover{background:#fff}
+.seg[aria-current=true]{background:var(--sun)}
+.seg:focus-visible{outline-offset:-3px}
+.scene{display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px 16px;padding:16px 0;border-top:1.5px dashed #b9b2dd}
+.scene .clock{font:700 25px/1 var(--display);font-synthesis-weight:none;letter-spacing:.02em}
+.scene .beat{font-size:14px;color:var(--ink-2);margin:3px 0 8px}
+.secs{width:100%;background:#fff;border:1.5px solid var(--ink);border-radius:7px;padding:6px 7px;min-height:40px}
+.fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.meter{font-size:13.5px;font-weight:700;margin-top:3px}
+.st-ok{color:var(--ok)}.st-warn{color:var(--warn)}.st-bad{color:var(--bad)}
+.scene .stack{margin-top:8px}
+.notebox{background:var(--lilac-2);border-left:5px solid var(--ink);padding:10px 13px;margin:0 0 16px;max-width:76ch}
+
+/* Branding */
+.modes{margin:0 0 14px}
+.pal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:14px}
+.pal{border:var(--line);border-radius:8px;padding:12px}
+.pal.on{box-shadow:4px 4px 0 var(--hot)}
+.pal h4{font-size:17px;font-weight:800}
+.sw-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:10px 0}
+.sw{appearance:none;border:1.5px solid var(--ink);border-radius:6px;padding:0;background:#fff;text-align:left;cursor:pointer;overflow:hidden;color:var(--ink)}
+.sw i{display:block;height:44px;border-bottom:1.5px solid var(--ink)}
+.sw b{display:block;font-size:13px;padding:4px 6px 0;font-weight:800}
+.sw code{display:block;font:500 13px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;padding:0 6px 5px}
+.sw:hover b{text-decoration:underline}
+.pal .why{margin-bottom:9px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(285px,1fr));gap:22px;margin-top:24px}
+h3.sub{font-size:20px;font-weight:800;margin:0 0 8px}
+.contrast{width:100%;border-collapse:collapse;font-size:14.5px}
+.contrast th,.contrast td{text-align:left;padding:7px 6px 7px 0;border-bottom:1.5px dashed #b9b2dd;vertical-align:top}
+.contrast th{font-weight:800}
+.demo-chip{display:inline-block;padding:2px 8px;border:1px solid var(--ink);border-radius:4px;font-weight:700}
+.cols{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.cols label{font-size:14px;font-weight:700;display:flex;flex-direction:column;gap:3px}
+input[type=color]{width:64px;height:40px;padding:2px;background:#fff;border:1.5px solid var(--ink);border-radius:6px;cursor:pointer}
+.logo-box{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.logo-view{width:170px;flex:none;padding:10px;background:repeating-conic-gradient(#ece9f8 0 25%,#fff 0 50%) 0 0/20px 20px;border:1.5px solid var(--ink);border-radius:8px}
+.logo-view svg{display:block;width:100%;height:auto}
+.logo-ctl{flex:1 1 200px;min-width:0}
+
+/* Typography */
+.type-list{display:grid;gap:14px}
+.type{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px 20px;border:var(--line);border-radius:8px;padding:14px}
+.type.on{box-shadow:4px 4px 0 var(--hot)}
+.type h4{font-size:17px;font-weight:800}
+.type .tag{font-size:13.5px;font-weight:700;color:var(--ok)}
+.type .sample{overflow-wrap:anywhere;margin:10px 0 4px}
+.specs{font-size:14px;color:var(--ink-2);margin:0;padding:0;list-style:none}
+.specs li{margin-bottom:3px}
+.specs b{color:var(--ink)}
+
+/* Lists */
+.idea-sec{margin-top:24px}
+.idea{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:8px;align-items:start}
+.tags{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.tagrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:start}
+.ctalist{display:grid;gap:7px}
+.ctalist .row{justify-content:space-between;flex-wrap:nowrap;border-bottom:1.5px dashed #b9b2dd;padding-bottom:7px}
+.a11y{margin:0;padding-left:20px;max-width:72ch}
+.a11y li{margin-bottom:6px}
+
+/* Prompts */
+.prompt{margin-top:22px}
+.prompt:first-of-type{margin-top:6px}
+.prompt textarea{font:400 14.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;height:280px;field-sizing:fixed}
+.prompt .row{margin-bottom:6px}
+
+/* Check */
+.summary{font-weight:800;font-size:19px;margin-bottom:4px}
+.chk{display:grid;grid-template-columns:96px minmax(0,1fr);gap:4px 14px;padding:13px 0;border-top:1.5px dashed #b9b2dd}
+.badge{display:inline-flex;gap:5px;align-items:center;font-weight:800;font-size:14px;padding:3px 8px;border-radius:5px;border:1.5px solid currentColor;justify-self:start;background:#fff}
+.chk h3{font-size:17px;font-weight:800}
+.chk ul{margin:4px 0 0;padding-left:18px;font-size:15px}
+.finalnote{font-weight:700;margin-top:16px;padding:11px 13px;background:var(--lilac-2);border-left:5px solid var(--hot);max-width:66ch}
+
+/* Stage & reel */
+.stage h2{color:#fff;margin-bottom:10px}
+.phone{width:calc(var(--rw) + 16px);margin:0 auto;padding:8px;background:#000;border:2px solid #fff;border-radius:30px}
+.reel{--r-bg:#fff;--r-text:#111;--r-accent:#c00;--r-support:#eee;--r-on:#fff;
+  --st:12%;--sb:24%;--sr:14%;--sl:5%;
+  position:relative;width:var(--rw);aspect-ratio:9/16;overflow:hidden;border-radius:22px;background:var(--r-bg);color:var(--r-text)}
+.reel-art{position:absolute;inset:0}
+.reel-art svg{display:block;width:100%;height:100%}
+.reel-safe{position:absolute;top:var(--st);bottom:var(--sb);left:var(--sl);right:var(--sr);display:flex;flex-direction:column;gap:6px;min-width:0}
+.reel-brand{display:flex;align-items:center;gap:7px;min-width:0}
+.reel-logo{width:calc(var(--rw)*.135);height:calc(var(--rw)*.135);flex:none}
+.reel-logo svg{display:block;width:100%;height:100%}
+.reel-name{font-weight:800;font-size:calc(var(--rw)*.048);line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reel-mid{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:hidden}
+.reel-head{font-size:calc(var(--rw)*var(--hs,.12));line-height:1.04;overflow-wrap:anywhere;margin:0}
+.reel-kws{font-size:calc(var(--rw)*.038);font-weight:700;margin-top:8px;color:var(--r-text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.reel-cap{align-self:flex-start;background:var(--r-accent);color:var(--r-on);font-weight:700;font-size:calc(var(--rw)*.046);line-height:1.28;padding:.4em .6em;border-radius:6px;max-width:100%;overflow-wrap:anywhere}
+.reel-zones{position:absolute;inset:0;pointer-events:none}
+.zone{position:absolute;background:repeating-linear-gradient(135deg,rgba(0,0,0,.48) 0 6px,rgba(255,255,255,.3) 6px 12px);color:#fff;font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;line-height:1.15}
+.zone span{background:#000;padding:2px 5px;border-radius:3px}
+.z-t{top:0;left:0;right:0;height:var(--st)}
+.z-b{bottom:0;left:0;right:0;height:var(--sb)}
+.z-r{top:var(--st);bottom:var(--sb);right:0;width:var(--sr);writing-mode:vertical-rl}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0 8px}
+.stage .btn{background:#fff;box-shadow:none}
+.stage .btn:hover{background:var(--lilac)}
+.readout{text-align:center;font-weight:700;font-size:15px}
+.safe-t{display:flex;gap:8px;align-items:center;justify-content:center;font-size:15px;font-weight:600;margin:8px 0 4px;min-height:32px;cursor:pointer}
+.safe-t input{width:20px;height:20px}
+.stage .help{color:#d9d4f5;text-align:center;max-width:42ch;margin:4px auto 0}
+
+/* Toast & dialog */
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;border:2px solid var(--sun);padding:10px 16px;border-radius:8px;font-weight:700;z-index:60;max-width:calc(100vw - 32px);box-shadow:4px 4px 0 var(--hot)}
+dialog{border:var(--line);border-radius:10px;padding:18px;width:min(640px,calc(100vw - 32px));background:var(--paper);color:var(--ink)}
+dialog::backdrop{background:rgba(23,18,59,.65)}
+dialog textarea{height:44vh;margin:10px 0;field-sizing:fixed}
+.foot{background:var(--ink);color:#e6e2ff;font-size:14px;padding:18px clamp(16px,3vw,36px)}
+.jump{display:none}
+
+@media (max-width:1320px){
+  .work{grid-template-columns:350px minmax(0,1fr);grid-template-areas:"brief stage" "brief plan"}
+  .stage{position:relative;max-height:none;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 26px;align-items:center}
+  .stage h2{grid-column:1/-1}
+  .phone{grid-row:2 / span 5;margin:0}
+  .stage .help{text-align:left;margin-left:0}
+  .ctl{justify-content:flex-start}.readout{text-align:left}.safe-t{justify-content:flex-start}
+}
+@media (max-width:860px){
+  .work{grid-template-columns:minmax(0,1fr);grid-template-areas:"brief" "stage" "plan"}
+  .brief{border-right:0;border-bottom:var(--line)}
+  .stage{display:block}
+  .phone{margin:0 auto}
+  .stage .help{text-align:center;margin:4px auto 0}
+  .ctl{justify-content:center}.readout{text-align:center}.safe-t{justify-content:center}
+  .jump{display:inline-flex}
+}
+@media (max-width:640px){
+  :root{--rw:min(272px,72vw)}
+  .rowitem{grid-template-columns:minmax(0,1fr)}
+  .rowitem>.stack{flex-direction:row;flex-wrap:wrap}
+  .scene{grid-template-columns:minmax(0,1fr)}
+  .scene .side{display:grid;grid-template-columns:auto 80px 1fr;gap:8px;align-items:center}
+  .scene .beat{margin:0}
+  .scene .stack{grid-column:1/-1;flex-direction:row;margin-top:0}
+  .fields{grid-template-columns:minmax(0,1fr)}
+  .type{grid-template-columns:minmax(0,1fr)}
+  .chk{grid-template-columns:minmax(0,1fr)}
+  .tab{padding:8px 10px;font-size:14.5px}
+  .sheet{box-shadow:3px 3px 0 var(--ink);padding:14px}
+  .stage{padding-left:34px;padding-right:14px}
+  .seg{font-size:12.5px}
+  .kw{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#plan">Skip to your plan</a>
+<header class="top">
+  <div class="top-in">
+    <h1 class="mark"><span>Reel Prompt</span><b>Studio</b></h1>
+    <p class="top-note"><strong>Plan a short video on any topic, then copy the prompts.</strong> This tool builds prompts using templates and design rules. It does not call an AI service.</p>
+    <button type="button" class="btn alt" id="btnExample">Try an Example</button>
+  </div>
+</header>
+
+<main class="work">
+  <section class="brief" aria-labelledby="briefH">
+    <h2 class="sec" id="briefH">Your brief</h2>
+    <form id="form" novalidate autocomplete="off">
+      <fieldset class="group"><legend>The idea</legend>
+        <div class="f"><label for="topic">Topic</label>
+          <input type="text" id="topic" name="topic" dir="auto" placeholder="For example: why the Moon has phases" aria-describedby="topicErr topicHelp">
+          <p class="err" id="topicErr" hidden></p>
+          <p class="help" id="topicHelp"></p></div>
+        <div class="f"><label for="audience">Intended audience</label>
+          <input type="text" id="audience" name="audience" dir="auto" list="audList" value="Students aged 13 to 16" aria-describedby="audErr">
+          <datalist id="audList"><option value="Students aged 13 to 16"><option value="Younger children aged 8 to 11"><option value="Students revising for exams"><option value="Parents and families"><option value="Teachers"><option value="Complete beginners"><option value="Keen fans of the subject"><option value="The general public"></datalist>
+          <p class="err" id="audErr" hidden></p></div>
+        <fieldset class="f"><legend>Purpose</legend><div class="pills" data-pills="purpose"></div></fieldset>
+        <div class="f"><label for="domain">Topic type</label>
+          <select id="domain" name="domain"></select>
+          <p class="help" id="domHelp"></p></div>
+        <div id="bookFields" hidden>
+          <fieldset class="f"><legend>Spoilers</legend><div class="pills" data-pills="spoiler"></div></fieldset>
+          <fieldset class="f"><legend>Book angle</legend><div class="pills" data-pills="bookAngle"></div></fieldset>
+        </div>
+      </fieldset>
+      <fieldset class="group"><legend>The reel</legend>
+        <fieldset class="f"><legend>Platform</legend><div class="pills" data-pills="platform"></div></fieldset>
+        <fieldset class="f"><legend>Duration</legend><div class="pills" data-pills="duration"></div></fieldset>
+        <fieldset class="f"><legend>Tone</legend><div class="pills" data-pills="tone"></div></fieldset>
+        <fieldset class="f"><legend>Format</legend><div class="pills" data-pills="format"></div></fieldset>
+      </fieldset>
+      <fieldset class="group"><legend>The look</legend>
+        <div class="f"><label for="brand">Brand name <span class="opt">(optional)</span></label>
+          <input type="text" id="brand" name="brand" dir="auto" placeholder="For example: Pocket Lab"></div>
+        <fieldset class="f"><legend>Three brand keywords</legend>
+          <div class="kw">
+            <div><label class="vh" for="kw1">Brand keyword 1</label><input type="text" id="kw1" name="kw1" dir="auto" value="curious"></div>
+            <div><label class="vh" for="kw2">Brand keyword 2</label><input type="text" id="kw2" name="kw2" dir="auto" value="clear"></div>
+            <div><label class="vh" for="kw3">Brand keyword 3</label><input type="text" id="kw3" name="kw3" dir="auto" value="friendly"></div>
+          </div></fieldset>
+        <fieldset class="f"><legend>Visual style</legend><div class="pills" data-pills="style"></div></fieldset>
+        <div class="f"><label for="colIn">Colours to include <span class="opt">(optional)</span></label>
+          <input type="text" id="colIn" name="colIn" dir="auto" placeholder="teal, #ffcc00"></div>
+        <div class="f"><label for="colOut">Colours to avoid <span class="opt">(optional)</span></label>
+          <input type="text" id="colOut" name="colOut" dir="auto" placeholder="red, brown">
+          <p class="help" id="colHelp"></p></div>
+      </fieldset>
+      <fieldset class="group"><legend>The details</legend>
+        <div class="f"><label for="cta">Call to action</label>
+          <input type="text" id="cta" name="cta" dir="auto" placeholder="Leave blank to get a suggestion">
+          <p class="help">Keep it to one clear action.</p></div>
+        <div class="f"><label for="avoid">Avoid these things</label>
+          <textarea id="avoid" name="avoid" dir="auto" rows="2" placeholder="Separate with commas: jump scares, slang, flashing lights"></textarea></div>
+        <div class="f"><label for="facts">Verified facts or source notes <span class="opt">(optional)</span></label>
+          <textarea id="facts" name="facts" dir="auto" rows="3" placeholder="One fact per line, in your own words, with where you checked it"></textarea>
+          <p class="help">Only facts you add here go into the script. Anything missing appears as [add a verified fact].</p></div>
+      </fieldset>
+      <div class="actions">
+        <button type="submit" class="btn go wide" id="btnGen">Generate Plan</button>
+        <button type="button" class="btn alt" id="btnAnother">Another Version</button>
+        <button type="button" class="btn" id="btnClearPins">Clear kept</button>
+      </div>
+    </form>
+    <div class="draftbox">
+      <div class="row">
+        <button type="button" class="btn small" id="btnSave">Save Draft</button>
+        <button type="button" class="btn small" id="btnClearDraft">Clear Saved Draft</button>
+      </div>
+      <p id="draftNote">Drafts stay in this browser on this device. Browser saving does not sync between devices.</p>
+    </div>
+  </section>
+
+  <section class="stage" id="stage" aria-labelledby="stageH">
+    <h2 class="sec" id="stageH">Reel preview</h2>
+    <div class="phone">
+      <div class="reel" id="reel" role="img" aria-label="Preview of the reel">
+        <div class="reel-art" id="reelArt"></div>
+        <div class="reel-safe">
+          <div class="reel-brand"><div class="reel-logo" id="reelLogo"></div><div class="reel-name" id="reelName" dir="auto"></div></div>
+          <div class="reel-mid"><p class="reel-head" id="reelHead" dir="auto"></p><div class="reel-kws" id="reelKws" dir="auto"></div></div>
+          <div class="reel-cap" id="reelCap" dir="auto"></div>
+        </div>
+        <div class="reel-zones" id="reelZones">
+          <div class="zone z-t"><span>Keep clear: top</span></div>
+          <div class="zone z-b"><span>Keep clear: captions and buttons</span></div>
+          <div class="zone z-r"><span>Keep clear: icons</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="ctl">
+      <button type="button" class="btn small" id="btnPrev">Previous</button>
+      <button type="button" class="btn small" id="btnPlay">Play</button>
+      <button type="button" class="btn small" id="btnNext">Next</button>
+    </div>
+    <p class="readout" id="readout" aria-live="polite"></p>
+    <label class="safe-t"><input type="checkbox" id="safeToggle"> Show safe areas</label>
+    <p class="help">Safe areas are approximate because platform interfaces vary. Check your reel in the app before posting.</p>
+  </section>
+
+  <section class="plan" id="plan" aria-labelledby="planH">
+    <h2 class="vh" id="planH">Your reel plan</h2>
+    <div class="toolbar">
+      <div class="row">
+        <button type="button" class="btn small" id="btnCopyAll">Copy Everything</button>
+        <button type="button" class="btn small" id="btnDownload">Download Plan</button>
+        <a class="btn small jump" href="#stage">See preview</a>
+      </div>
+      <p class="help" id="pinCount"></p>
+    </div>
+    <div class="stale" id="stale" hidden><span>Your brief has changed since this plan was made.</span><button type="button" class="btn small" id="btnStale">Generate Plan</button></div>
+    <div class="tabs" role="tablist" aria-label="Plan sections" id="tabs"></div>
+    <div class="sheet" id="sheet"></div>
+  </section>
+</main>
+<footer class="foot">Everything runs in your browser. Nothing you type is sent anywhere. Check facts yourself before posting.</footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="manual" aria-labelledby="manualH">
+  <h2 class="sec" id="manualH">Copy this manually</h2>
+  <p>Your browser blocked automatic copying. The text below is selected: press Ctrl+C, or Cmd+C on a Mac. On a phone, press and hold to copy.</p>
+  <label class="vh" for="manualText">Text to copy</label>
+  <textarea id="manualText" readonly></textarea>
+  <button type="button" class="btn" id="manualClose">Close</button>
+</dialog>
+
+<script>
+(function(){"use strict";
+/* ---------- Option lists ---------- */
+var OPTS={
+  purpose:[["teach","Teach"],["entertain","Entertain"],["explain","Explain"],["inspire","Inspire"],["review","Review"],["story","Tell a story"]],
+  platform:[["reels","Instagram Reels"],["tiktok","TikTok"],["shorts","YouTube Shorts"]],
+  duration:[["15","15 seconds"],["30","30 seconds"],["60","60 seconds"]],
+  tone:[["funny","Funny"],["dramatic","Dramatic"],["informative","Informative"],["calm","Calm"],["bold","Bold"],["mysterious","Mysterious"]],
+  format:[["talking","Talking head"],["faceless","Faceless explainer"],["doc","Mini-documentary"],["tutorial","Tutorial"],["list","List"],["myth","Myth versus fact"],["ba","Before-and-after"]],
+  style:[["minimalist","Minimalist"],["monochrome","Monochrome"],["neon","Neon"],["editorial","Editorial"],["retro","Retro"],["cinematic","Cinematic"],["playful","Playful"]],
+  spoiler:[["none","No spoilers"],["light","Light hints"],["full","Full spoilers, with a warning"]],
+  bookAngle:[["review","Review"],["story","Story"]]
+};
+function label(group,val){var o=OPTS[group].filter(function(x){return x[0]===val})[0];return o?o[1]:val}
+var PLAT_SAFE={reels:{st:14,sb:30,sr:14,sl:5},tiktok:{st:10,sb:24,sr:16,sl:5},shorts:{st:9,sb:22,sr:15,sl:5}};
+
+/* ---------- Topic types (keyword rules) ---------- */
+var DOMAINS={
+ science:{name:"Science",re:"science|physics|chemistry|biology|atoms?|cells?|dna|planets?|moon|sun|stars?|space|gravity|volcano(es)?|photosynthesis|experiments?|evolution|black holes?|electricity|magnets?|earthquakes?|bacteria|viruses|genes?|solar|eclipse|tides?",
+  props:["a simple tabletop demonstration","a hand-drawn diagram with clear labels","a close-up of the thing being explained"],
+  note:"Science: favour demonstrations, clear labels and evidence. Show how we know, not only what happens.",
+  check:"Check science claims against a textbook, a university page or a national science agency.",tags:["ScienceExplained","ScienceForStudents"]},
+ history:{name:"History",re:"history|historical|wars?|empires?|revolution|ancient|medieval|kings?|queens?|pharaohs?|romans?|vikings?|century|battles?|treaty|civil rights|great fire|tudors?|ottoman|egyptians?|plague|independence|dynasty",
+  props:["a timeline drawn across the frame","a map with one region highlighted","a period illustration or archive image you have permission to use"],
+  note:"History: favour timelines, context and source checks. Say when and where before you say why.",
+  check:"Check dates and names against two sources, and note who wrote each source and when.",tags:["HistoryExplained","HistoryInShort"]},
+ books:{name:"Books and reading",re:"books?|novels?|authors?|poems?|poetry|literature|shakespeare|fiction|reading|paperback|chapters?|memoir|bookish|orwell|austen|dickens",
+  props:["the book held with the title visible","a page corner and a bookmark","a shelf with one spine pulled forward"],
+  note:"Books: choose a spoiler level, then keep to a review or a story angle.",
+  check:"Check the author, publication date and any quotation against the book itself.",tags:["BookRecommendations","ReadingCommunity"]},
+ maths:{name:"Maths",re:"maths?|algebra|geometry|fractions?|equations?|calculus|probability|percentages?|trigonometry|statistics|pythagoras|decimals?",
+  props:["a worked example written line by line","a whiteboard with the key step circled","objects arranged to show the numbers"],
+  note:"Maths: show each line of working and pause on the step that usually goes wrong.",
+  check:"Work the example yourself, then check the answer with a calculator or a teacher.",tags:["MathsHelp","MathsExplained"]},
+ tech:{name:"Technology",re:"coding|code|programming|apps?|software|robots?|computers?|internet|python|javascript|websites?|cyber|algorithms?|smartphones?|html|encryption|artificial intelligence",
+  props:["a screen recording zoomed in on the key area","a simple flow diagram of what connects to what","a device on a clean desk"],
+  note:"Technology: zoom in on screens, hide personal details and show one action at a time.",
+  check:"Check version numbers and features against official documentation, because these change.",tags:["TechExplained","LearnToCode"]},
+ sport:{name:"Sport",re:"sports?|football|basketball|cricket|tennis|athletics|swimming|rugby|netball|hockey|marathon|olympics?|training|padel",
+  props:["a slow-motion clip of the technique","a tactics board with counters","kit laid out on the ground"],
+  note:"Sport: use slow motion for technique and film safely, with a warm-up where one is needed.",
+  check:"Check records and results against an official governing body.",tags:["SportsTips","TrainSmart"]},
+ food:{name:"Food and cooking",re:"recipes?|cook(ing)?|bak(e|ing)|food|meals?|cakes?|pasta|snacks?|lunchbox|breakfast|kitchen|cuisine|biryani|bread",
+  props:["an overhead shot of the ingredients","a close-up of the texture changing","hands working at a clean board"],
+  note:"Food: show texture close up, list allergens and take care with knives and heat.",
+  check:"Check food safety and allergen information against a public health source.",tags:["EasyRecipes","CookWithMe"]},
+ music:{name:"Music",re:"music|songs?|guitar|piano|albums?|bands?|singing|rhythm|drums?|chords?|violin|orchestra|melody",
+  props:["hands on the instrument, close up","a waveform or notes drawn on screen","an instrument in a pool of light"],
+  note:"Music: only use audio you have the right to use. Describe sounds on screen for deaf viewers.",
+  check:"Check artist names, dates and credits against an official or library source.",tags:["MusicLessons","MusicTheory"]},
+ art:{name:"Art and design",re:"art|drawing|painting|sketch(ing)?|photography|films?|cinema|animation|graphic design|sculpture|fashion|typography|illustration",
+  props:["a time-lapse of the piece taking shape","a close-up of a brush or pencil","a before sketch beside the final work"],
+  note:"Art: let the work fill the frame and credit every artist whose work you show.",
+  check:"Check who made each work and whether you have permission to show it.",tags:["ArtProcess","CreativeStudents"]},
+ environment:{name:"Environment",re:"climate|recycling|plastics?|oceans?|pollution|sustainab(le|ility)|biodiversity|wildlife|environment(al)?|nature|forests?|rainforests?|coral|carbon|compost(ing)?",
+  props:["a local outdoor location","a simple diagram of the cycle involved","everyday objects sorted on a table"],
+  note:"Environment: stay specific and local, avoid doom and offer one realistic action.",
+  check:"Check figures against a scientific body or government agency, and note the year.",tags:["ClimateAction","EcoStudents"]},
+ wellbeing:{name:"Health and wellbeing",re:"sleep|stress|anxiety|mental health|mindfulness|wellbeing|friendships?|confidence|burnout|exercise|screen time|nutrition|health",
+  props:["a calm room with soft daylight","a notebook with one short list","a simple routine shown in small moments"],
+  note:"Wellbeing: share general ideas, not diagnoses, and point viewers to a trusted adult or professional.",
+  check:"Check health information against a national health service or qualified professional.",tags:["StudentWellbeing","WellbeingTips"]},
+ money:{name:"Money and business",re:"money|budget(ing)?|savings?|finance|pocket money|invest(ing|ment)?|business|entrepreneur|economics|inflation|startup",
+  props:["a simple budget written on paper","coins or tokens stacked to show amounts","a chart you drew from checked figures"],
+  note:"Money: use made-up example amounts, label them clearly and avoid financial promises.",
+  check:"Check rates and rules against an official or regulated source, and note the date.",tags:["MoneyBasics","TeenFinance"]},
+ language:{name:"Languages",re:"languages?|french|spanish|arabic|grammar|vocabulary|german|mandarin|translation|pronunciation|urdu|hindi|japanese|idioms?",
+  props:["a word appearing with its meaning","a phrase written in two languages","two people practising a short exchange"],
+  note:"Languages: show the spelling, say it slowly and repeat it once.",
+  check:"Check spelling and usage with a dictionary or a fluent speaker.",tags:["LanguageLearning","LearnLanguages"]},
+ geography:{name:"Geography and travel",re:"geography|countr(y|ies)|cit(y|ies)|rivers?|mountains?|travel|deserts?|continents?|maps?|dubai|london|culture|islands?|capital",
+  props:["a map zooming into one place","a street-level clip with permission to film","a compass or globe close up"],
+  note:"Geography: start with where it is on a map, and describe people and places with respect.",
+  check:"Check place names and figures against an atlas or official statistics.",tags:["GeographyFacts","ExploreTheWorld"]},
+ study:{name:"Study skills",re:"revision|revise|exams?|homework|study(ing)?|note-?taking|flashcards?|gcses?|a-levels?|igcse|timetable|school|essay|active recall",
+  props:["a tidy desk from above","flashcards being turned over","a planner with one block highlighted"],
+  note:"Study skills: show a real example of the method, not only a description.",
+  check:"Check study-method claims against an education source, or describe only your own experience.",tags:["StudyTips","RevisionHelp"]},
+ gaming:{name:"Gaming",re:"gaming|video ?games?|esports|consoles?|minecraft|roblox|fortnite|speedrun|game design",
+  props:["captured gameplay, zoomed in on the key moment","a controller close up","a simple map of the level"],
+  note:"Gaming: check each game's rules on sharing footage and avoid age-inappropriate clips.",
+  check:"Check patch details and release dates against official game notes.",tags:["GamingTips","GameDesign"]},
+ general:{name:"General",re:"",
+  props:["a clear everyday example of the topic","a simple diagram or sketch","one object that represents the idea"],
+  note:"General template: this topic did not match a specific type, so add your own examples and verified details.",
+  check:"Check every factual claim against at least one reliable source.",tags:["DidYouKnow","LearnSomethingNew"]}
+};
+var AUD_RULES=[["kids",/\b(child|children|kids?|primary|younger|aged? (7|8|9|10|11))\b/i],["parents",/\b(parents?|famil(y|ies)|carers?|guardians?)\b/i],["teachers",/\b(teachers?|educators?|tutors?|staff)\b/i],["exam",/\b(exams?|revis\w+|gcses?|igcses?|a-?levels?|ib)\b/i],["beginners",/\b(beginners?|new to|novices?|first-?time)\b/i],["fans",/\b(fans?|enthusiasts?|keen|experts?|hobbyists?)\b/i],["teens",/\b(teens?|teenagers?|students?|classmates?|pupils?|year \d+|aged? 1[2-8])\b/i]];
+var AUD_NOTES={kids:"Younger viewers: short words, one idea per scene and a slower pace.",parents:"Families: practical takeaways and a reason to talk about it at home.",teachers:"Teachers: name the learning point and make it easy to use in class.",exam:"Exam revisers: make the point easy to remember and to write down.",beginners:"Beginners: explain each new word the first time it appears.",fans:"Keen fans: skip the basics and go to a detail worth discussing.",teens:"Students: keep it direct, respectful and free of forced slang.",general:"General viewers: assume no background and give one clear takeaway."};
+
+/* ---------- Hook structures ---------- */
+var HOOKS={
+question:[
+ "Could you explain {t} in one breath?","Which part of {t} still confuses you?","What would you say {t} is really about?","How much do you actually know about {t}?","If {t} came up tomorrow, what would you say?",
+ ["Would you pass a pop quiz on {t}?","purpose:teach,explain aud:teens,exam"],["What if {t} is simpler than it looks?","tone:calm,informative"],["Who decided {t} had to be this confusing?","tone:funny"],["What really happened with {t}?","dom:history"],["How do we actually know this about {t}?","dom:science"],["Is {t} worth your time?","purpose:review"],["Should {t} be your next read?","dom:books"],["Who could {t} change your mind about?","purpose:inspire"],["What are you missing about {t}?","tone:mysterious"],["Ready to settle {t} once and for all?","tone:bold"],["Want to try {t} in the next five minutes?","format:tutorial"],["Fact or myth: what have you heard about {t}?","format:myth"],["Which is the one thing to remember about {t}?","format:list"],["What did {t} look like before it changed?","format:ba"],["Could you teach {t} to a ten-year-old?","aud:beginners,teens"],["Can you show your working on {t}?","dom:maths"]
+],
+surprise:[
+ "Forget the textbook version of {t} for a moment.","Let's start {t} from the other end.","Here's {t} from the side you rarely see.","Pretend you've never heard of {t}.",
+ ["One detail changes {t}: [add a verified fact].","purpose:teach,explain"],["Here's {t}, told backwards.","purpose:story"],["{T} looks different from the ground.","dom:history,geography"],["{T} is easier to see than to describe.","dom:science"],["Judge {t} by its opening page.","dom:books"],["{T} has been quietly ruining my notes.","tone:funny"],["Everything turned on one moment in {t}.","tone:dramatic"],["Something about {t} does not add up.","tone:mysterious"],["Let's stop overcomplicating {t}.","tone:bold"],["Let's look at {t} slowly, piece by piece.","tone:calm"],["Here's what the summary of {t} leaves out.","purpose:review"],["The numbers behind {t} tell a story.","dom:maths,money"],["Here's the idea behind {t}, without the jargon.","tone:informative"]
+],
+problem:[
+ "You've heard of {t}, but explaining it is harder.","You keep meaning to look into {t}, and then you don't.","Every guide to {t} seems to assume you already know it.",
+ ["You've read your notes on {t} three times. Still nothing.","aud:exam,teens"],["{T} comes up, and suddenly everyone looks at you.","aud:parents"],["Your class has twenty minutes and {t} is next.","aud:teachers"],["Someone said {t} was easy. They lied.","tone:funny aud:!parents"],["Starting {t} feels like joining halfway through.","aud:beginners"],["You know the basics of {t}. Now what?","aud:fans"],["Nobody will sit still for a lesson on {t}.","aud:kids,teachers tone:funny"],["Your first try at {t} didn't go to plan.","format:tutorial,ba"],["Your to-read pile is huge. Is {t} worth it?","dom:books"],["You've heard five versions of {t} already.","format:myth"],["{T} feels too big to change on your own.","purpose:inspire"],["{T} can feel like a lot. That's okay.","tone:calm"]
+],
+challenge:[
+ "Try this: explain {t} before this reel ends.","Pause at the end and sum up {t} in five words.","Stay to the end, then teach {t} to one person.","Bet you can explain {t} after this.",
+ ["Beat me to the answer on {t}.","tone:funny,bold"],["Try {t} with me, right now.","format:tutorial"],["Spot the wrong claim about {t}.","format:myth"],["Rank these points on {t} as you watch.","format:list"],["Spot what changes in {t}.","format:ba"],["Solve this with me before the timer ends.","dom:maths"],["Try this today: one small step on {t}.","purpose:inspire"],["Tell me the ending of {t} without spoilers.","dom:books"],["Guess the date before I reveal it.","dom:history"],["Predict what happens next. Then watch.","dom:science"],["Watch closely. There's a clue you might miss.","tone:mysterious"],["Take one slow breath, then try this with me.","tone:calm"]
+],
+visual:[
+ ["The topic appears as one word, and a hand wipes it away to reveal {prop}.","Watch this first."],
+ ["Start tight on {prop}, then pull back fast to show the whole scene.","Look closely at this."],
+ ["Open on an unexplained detail of {prop}, with no words for the first second.","What are we looking at?"],
+ ["A hand slides {prop} into an empty frame and stops dead centre.","Let's put this right here."],
+ ["A small demonstration is already running as the reel begins.","Don't blink.","dom:science"],
+ ["A date slams onto a blank timeline, and the map behind it fades up.","It starts right here.","dom:history"],
+ ["A hand covers the book title, then slowly slides away.","No spoilers. Promise.","dom:books spoil:none"],
+ ["A hand covers the book title, then slowly slides away.","Let's open this one up.","dom:books spoil:!none"],
+ ["An unsolved problem is written in big strokes, then circled.","Solve this with me.","dom:maths"],
+ ["The finished result fills the frame, then the clip rewinds to the start.","Here's where we'll end up.","format:tutorial"],
+ ["A split screen shows the before and hides the after with a sliding panel.","Watch the left side.","format:ba"],
+ ["A sticker reading MYTH lands over a common claim, then peels at one corner.","Let's check that.","format:myth"],
+ ["A numbered stack of cards drops in and the top one flips.","Three things. Go.","format:list"],
+ ["A single light clicks on in a dark room and finds {prop}.","Something's here.","tone:mysterious,dramatic"],
+ ["A slow push-in on {prop} in soft daylight.","Let's take this slowly.","tone:calm"],
+ ["Something falls into frame with a comic thud, and the presenter just stares.","So that happened.","tone:funny"]
+]};
+var HOOK_NAMES={question:"Question",surprise:"Surprising angle",problem:"Relatable problem",challenge:"Challenge",visual:"Visual opening"};
+var HOOK_WHY={
+ question:{teach:"Opens a gap the lesson then fills.",entertain:"Invites a quick, playful answer.",explain:"Sets up the exact thing you will explain.",inspire:"Makes the viewer think of themselves.",review:"Puts the decision in the viewer's hands.",story:"Makes viewers want to know what happens."},
+ surprise:{teach:"Changes the viewpoint before the lesson starts.",entertain:"Sets up a playful twist.",explain:"Breaks the usual way of describing it.",inspire:"Shows the topic in a new light.",review:"Promises a view beyond the usual summary.",story:"Starts with tension instead of background."},
+ problem:{teach:"Starts where a learner may be stuck.",entertain:"Gets a laugh of recognition.",explain:"Names the confusion you will clear up.",inspire:"Meets the viewer where they are.",review:"Names the doubt your review answers.",story:"Gives the story a problem to solve."},
+ challenge:{teach:"Turns watching into practice.",entertain:"Makes the reel feel like a game.",explain:"Gives viewers a reason to follow closely.",inspire:"Asks for one small action.",review:"Asks viewers to judge alongside you.",story:"Asks viewers to predict the ending."},
+ visual:{teach:"Lets the example start the lesson.",entertain:"Hooks without needing words.",explain:"Shows the thing before naming it.",inspire:"Sets the feeling first.",review:"Puts the subject straight in view.",story:"Drops viewers into the moment."}
+};
+
+/* ---------- Story structures: beats ending ? need 30s+, ending + need 60s ---------- */
+var STRUCTS=[
+ ["Say it straight","hook why fact ex? q+ take? cta","format:talking"],
+ ["Question and answer","hook q fact ex? why+ take cta","format:talking"],
+ ["Personal take","hook set problem? moment take+ cta","format:talking purpose:inspire,story,entertain"],
+ ["Honest review","hook ctx good bad? fact+ verdict cta","format:talking purpose:review"],
+ ["Book talk: review","hook premise mood? quote+ verdict cta","format:talking,faceless,doc,list dom:books angle:review"],
+ ["Book talk: story","hook premise tension moment? mood+ take cta","format:talking,faceless,doc dom:books angle:story"],
+ ["Build the diagram","hook q label fact? why+ take cta","format:faceless"],
+ ["Everyday comparison","hook ctx ex fact? label+ take cta","format:faceless"],
+ ["Demonstrate and label","hook q demo label? ev take+ cta","format:faceless,talking dom:science"],
+ ["Evidence trail","hook demo ev? fact label+ take cta","format:faceless,doc dom:science"],
+ ["Timeline","hook ctx timeline turn? source+ take cta","format:faceless,talking dom:history"],
+ ["Worked example","hook q work label? mistake+ take cta","format:faceless,talking dom:maths"],
+ ["Three acts","hook ctx problem? turn why+ take cta","format:doc"],
+ ["Investigation","hook q ev fact? source+ take cta","format:doc"],
+ ["Then and now","hook ctx timeline turn? source take+ cta","format:doc dom:history"],
+ ["A day in the life","hook set problem? moment fact+ take cta","format:doc purpose:story,inspire"],
+ ["Result first","hook result step step? step mistake+ result2+ cta","format:tutorial"],
+ ["Mistake first","hook mistake step step? step result2 cta","format:tutorial"],
+ ["Countdown","hook item item item? item+ item+ take+ cta","format:list"],
+ ["Mix of ideas","hook item item? item take+ why+ cta","format:list"],
+ ["Myth, then fact","hook myth truth why? myth+ truth+ take cta","format:myth"],
+ ["Check the claim","hook myth ev truth? source+ take cta","format:myth"],
+ ["The change","hook before change? after why+ take cta","format:ba"],
+ ["After first","hook after before? change fact+ take cta","format:ba"]
+];
+
+/* ---------- Scene banks ---------- */
+var BEATS={
+why:{w:1.5,label:"Why it matters",
+ v:["Here's why {t} is worth {n} seconds of your day.","Once this clicks, the next part gets easier.","It's a small idea that connects to a lot of others.",
+  ["Why care? Because future you deserves fewer panic moments.","tone:funny"],["And this is where the stakes begin to rise.","tone:dramatic"],["There's no rush. Just notice why this matters to you.","tone:calm"],["Here's the point, and I won't soften it: this is worth knowing.","tone:bold"],["But the reason it matters isn't the one you'd guess.","tone:mysterious"],["Understanding this gives you a base for what comes next.","tone:informative"],["This is the part worth having ready on exam day.","aud:exam"],["It's a useful one to talk through at home.","aud:parents"],["It's a handy way into the topic at the start of a lesson.","aud:teachers"]],
+ s:["A simple graphic links {t} to something from daily life.",["Presenter leans in, then a small graphic pops up beside them.","format:talking"],["Icons connect with drawn lines as the voiceover continues.","format:faceless"],["A wider shot of the location gives the idea some scale.","format:doc"]],
+ x:["Why it matters","So why care?","Here's the point"]},
+ctx:{w:1.4,label:"Context",
+ v:["First, a little background on {t}.","Let's set the scene.","To get this, you need one piece of context: {fact}","Here's where it begins.",
+  ["Quick catch-up, no homework required.","tone:funny"],["To understand it, go back to where it began.","tone:dramatic"],["Let's begin with what we can say for certain.","tone:informative"],["Before anything else, settle in with this.","tone:calm"],["Start with a place, a date and a person: {fact}","dom:history"],["Here's what you should know before you decide.","purpose:review"]],
+ s:["{Prop}, with a short label naming where and when.",["Presenter gestures to a simple sketch held up to the lens.","format:talking"],["An establishing shot with a slow pan across {prop}.","format:doc"],["A map or timeline slides in behind the title.","dom:history"]],
+ x:["The background","Set the scene","Where it starts"]},
+q:{w:1.3,label:"The question",
+ v:["So here's the real question: what's actually going on?","Let's break down one question.","Ask yourself what you would expect to happen.",
+  ["So what on earth is going on?","tone:funny"],["One question has never quite gone away.","tone:dramatic"],["Let's ask a gentle question: what's happening here?","tone:calm"],["Simple question. Straight answer coming.","tone:bold"],["Who benefits from us not asking this?","tone:mysterious purpose:!teach"],["The question is simple: how does it work?","tone:informative"]],
+ s:["The question appears word by word over {prop}.",["Presenter pauses and raises an eyebrow at the lens.","format:talking"],["A large question mark draws itself, then shrinks into the corner.","format:faceless"]],
+ x:["The real question","So what's going on?","Ask yourself"]},
+fact:{w:1.8,label:"Key fact",fact:1,
+ v:["{fact}","Here's the key point: {fact}","Here's what we can say for sure: {fact}","Let's stick to what's checked: {fact}",
+  ["And yes, this part is real: {fact}","tone:funny"],["Then comes the part that matters: {fact}","tone:dramatic"],["Quite simply: {fact}","tone:calm"],["No padding. {fact}","tone:bold"],["Now, the detail that stands out: {fact}","tone:mysterious"],["According to my sources: {fact}","tone:informative"]],
+ s:["The checked fact appears as large type over {prop}, with the source named in small print.",["Presenter holds up the source so viewers can see where it came from.","format:talking"],["A labelled diagram builds one part at a time.","format:faceless"],["A close-up of the document or location that supports the point.","format:doc"]],
+ x:["Key fact","The checked bit","Here's the fact"]},
+ex:{w:1.5,label:"Example",
+ v:["Picture it like this: [add an everyday comparison].","Here's an example you can picture.","Try it with something from your own day.",
+  ["Imagine your group chat, but it's {t}.","tone:funny"],["Imagine standing right in the middle of it.","tone:dramatic"],["Think of something familiar and quiet, like a slow morning.","tone:calm"],["Real example: [add a checked example].","tone:informative,bold"]],
+ s:["An everyday object stands in for the idea, with a label beside it.",["Presenter acts out the comparison in one continuous shot.","format:talking"],["A simple animation compares the idea with something familiar.","format:faceless"]],
+ x:["For example","Picture this","Think of it like…"]},
+label:{w:1.4,label:"Clear labels",
+ v:["Let's label each part so nothing gets lost.","Here's what each part does.","Follow the labels and it starts to make sense.",
+  ["Labels: the unsung heroes of this reel.","tone:funny"],["Now you can see all of it, piece by piece.","tone:dramatic"],["One label at a time. There's no hurry.","tone:calm"],["Three labels. That's all you need.","tone:bold"],["Each label reveals a little more.","tone:mysterious"]],
+ s:["Labels appear one at a time on {prop}, each with a thin pointer line.",["The diagram builds up in layers, with the newest part highlighted.","format:faceless"],["Presenter points to labels added in the edit.","format:talking"]],
+ x:["Part by part","Label it","Here's each part"]},
+demo:{w:2,label:"Demonstration",
+ v:["Watch what happens when we try it.","Let's test it rather than just say it.","Here's a small demonstration you can follow.","Keep your eyes on the centre of the screen.",
+  ["If this goes wrong, you'll see that too.","tone:funny"],["Everything depends on what happens next.","tone:dramatic"],["Watch quietly. It happens slowly.","tone:calm"],["No talk. Just the test.","tone:bold"],["Look closely at what changes.","tone:mysterious"]],
+ s:["A safe demonstration in one steady shot, with the change happening in the centre of the frame.","Close-up on the moment of change, slowed down to half speed."],
+ x:["Watch this","Test it","Keep watching"]},
+ev:{w:1.6,label:"Evidence",fact:1,
+ v:["So how do we know? {fact}","Here's the evidence: {fact}","Don't take my word for it: {fact}","Look at what the source says: {fact}",
+  ["Receipts, please: {fact}","tone:funny"],["The record is clear on this: {fact}","tone:dramatic,bold"],["The evidence is quiet, but it's there: {fact}","tone:calm,mysterious"]],
+ s:["The source appears on screen with its title and date.",["Result of the demonstration is measured and labelled on screen.","dom:science"],["A close-up of a checked document, with the key line highlighted.","format:doc"]],
+ x:["How we know","The evidence","Check the source"]},
+timeline:{w:2,label:"Timeline",fact:1,
+ v:["Here's the order of events: {fact}","Let's walk through it in order: {fact}","Start with the date: {fact}","Plot it on the line: {fact}"],
+ s:["A timeline slides sideways, stopping on each dated marker.","A map changes across dates shown in the top corner."],
+ x:["The timeline","When it happened","In order"]},
+turn:{w:1.8,label:"Turning point",
+ v:["Then something shifts: [add the turning point].","This is where it turns.","And after that, nothing stays the same.",
+  ["Plot twist, and it's a big one.","tone:funny"],["And then, in one moment, it all changes.","tone:dramatic"],["Slowly, things begin to change.","tone:calm"],["Here's the moment that decides it.","tone:bold"],["And then something happens that no one planned for.","tone:mysterious"]],
+ s:["The music drops and a single image holds, with one line of text.","A hard change of colour or location marks the shift."],
+ x:["The turning point","Then it changed","What changed"]},
+source:{w:1.3,label:"Source check",
+ v:["A quick source check: [add who recorded this and when].","Always ask who wrote this down, and why.","Sources can disagree, so check more than one.",
+  ["Yes, I checked. Twice. You should too.","tone:funny"]],
+ s:["The source's name and date appear beside a magnifying-glass icon.","Two sources side by side, with the point they agree on underlined."],
+ x:["Check the source","Who wrote this?","Two sources"]},
+work:{w:2.2,label:"Worked example",
+ v:["Let's work it out together: [add a checked example].","Write down what you know first.","Here's the working, one line at a time.","Now do the same step on both sides."],
+ s:["A worked example written line by line, with the current line highlighted.","An overhead shot of the page as each line of working appears."],
+ x:["Work it out","Line by line","Show your working"]},
+take:{w:1.3,label:"Takeaway",
+ v:["So if you remember one thing, make it this: [add your one-line takeaway].","That's {t} in {n} seconds.","Now you can explain this to someone else.","Keep hold of that one idea.",
+  ["You may now correct your friends. Gently.","tone:funny"],["And that's why it still matters today.","tone:dramatic"],["Take that with you, nice and slowly.","tone:calm"],["That's it. Now you know.","tone:bold"],["And the rest? That's for you to find out.","tone:mysterious"],["Write that one down before you forget.","aud:exam"],["Ask someone at home what they think.","aud:parents"],["That's the point to pick up in your next lesson.","aud:teachers"]],
+ s:["The opening image returns with its missing label now filled in.","One line of text centred on a clean background.",["Presenter gives a small nod and lets the line land.","format:talking"]],
+ x:["Remember this","The takeaway","In one line"]},
+premise:{w:1.8,label:"Premise",
+ v:["Here's the setup, without giving anything away: [add a spoiler-free premise].","All you need is the opening situation.","No plot twists here, just the starting point.",["Here's the setup, and a hint of what's coming.","spoil:light"],["Spoiler warning: I'm covering the whole plot.","spoil:full"],["Warning, big spoilers start now: [add the premise].","spoil:full"]],
+ s:["The book is held at an angle, with the premise written on a sticky note.","Pages flick past, then stop on a bookmark."],
+ x:["The setup","No spoilers","Here's the premise"]},
+mood:{w:1.5,label:"How it feels",
+ v:["It feels like [add the mood, in your own words].","Here's how it felt to read.","Think about who would love this one.",["Reading it was a whole emotional admin task.","tone:funny"],["It stays with you long after the last page.","tone:dramatic,mysterious"],["It's a slow, thoughtful read.","tone:calm"]],
+ s:["The reader's face in soft light, looking up from the page.","Colour and texture chosen to match the book's mood."],
+ x:["How it feels","The mood","Who it's for"]},
+tension:{w:1.7,label:"Rising tension",
+ v:["Then the trouble starts.","Someone has to make a choice.","And you won't see all of this coming.",["I'll stop before I ruin anything.","spoil:none"],["Here's the hint I'm allowed to give: [add a light hint].","spoil:light"],["This is where the big reveal lands: [add the event].","spoil:full"]],
+ s:["The book cover cuts to a close-up of a single word on the page.","A shadow crosses the page while the sound drops."],
+ x:["The trouble starts","Then it builds","A hard choice"]},
+quote:{w:1.5,label:"Short quotation",
+ v:["One line stays with me: [add a short quote you have checked].","Read this line slowly: [add a checked quote]."],
+ s:["The quotation appears on a page, with the author and page number credited."],
+ x:["In the author's words","One line"]},
+verdict:{w:1.5,label:"Verdict",
+ v:["My verdict: [add your honest opinion].","Would I recommend it? [add your answer and why].","Read it if you like [add similar interest].",["Should you bother? Honestly: [add your view].","tone:funny,bold"],["Here's where I land, for what it's worth: [add your view].","tone:calm"]],
+ s:["The reviewer holds the subject up and gives their verdict to the lens.","A simple pros and cons list ends on a circled verdict."],
+ x:["My verdict","Worth it?","Read it if…"]},
+good:{w:1.5,label:"What works",
+ v:["What works: [add one specific strength].","Here's what I liked, and why.","One thing it does well: [add detail]."],
+ s:["A close-up of the feature being praised, with a tick and a label."],
+ x:["What works","The good bit"]},
+bad:{w:1.3,label:"What doesn't",
+ v:["What doesn't: [add one honest criticism].","Here's the part I'd change.","A fair warning before you decide."],
+ s:["The same subject in a flatter light, with a cross and a label."],
+ x:["What doesn't","Fair warning"]},
+step:{w:1.9,label:"Step",
+ v:["Step {ord}: [add this step in one short instruction].","Step {ord}: [add the action], and show it clearly.","Next is step {ord}: [add the action].","~Take your time with this bit.","~It's worth getting this part right.","~Here's why that helps: [add a reason]."],
+ s:["An overhead shot of the action for step {i}, with the number in the corner.","A close-up of hands completing step {i}, cut so each move is visible."],
+ x:["Step {i}","{i}. [short action]"]},
+mistake:{w:1.5,label:"Common slip",
+ v:["Watch out for this slip: [add the mistake to avoid].","Here's where it can go wrong.","If it looks wrong here, go back one step.",["This is where I messed it up. Learn from me.","tone:funny"]],
+ s:["The wrong version is shown with a cross, then the right version with a tick."],
+ x:["Watch out","Common slip","Avoid this"]},
+result:{w:1.3,label:"The result, first",
+ v:["Here's what you'll have at the end.","This is the result we're heading for.","Keep this picture in mind."],
+ s:["The finished result in full frame, held for a moment."],
+ x:["The result","Where we'll end up"]},
+result2:{w:1.5,label:"The finished result",
+ v:["And there's your result.","That's it, finished.","Compare yours with this one.",["Look at that. It actually worked.","tone:funny"],["Simple, steady, done.","tone:calm"]],
+ s:["The finished result is shown next to the first frame for comparison."],
+ x:["Done","The result","Finished"]},
+item:{w:1.7,label:"List point",
+ v:["Number {ord}: [add this point].","Point {ord}: [add this point in one short line].","Here's number {ord}: [add this point, with an example].","~Keep that one in mind.","~Here's an example: [add one].","~You'll see why in a moment."],
+ s:["A big number {i} fills one side of the frame, with {prop} on the other.","Card {i} flips over to reveal one short point."],
+ x:["Number {i}","{i}. [short point]"]},
+myth:{w:1.4,label:"The myth",
+ v:["You may have heard this: [add a myth you can source].","Here's the claim: [add the common claim].",["Sounds believable, doesn't it? [add the claim].","tone:funny,mysterious"]],
+ s:["The claim appears on a torn paper strip with a MYTH stamp.","Presenter reads the claim with a sceptical look."],
+ x:["Myth","The claim","Heard this?"]},
+truth:{w:1.8,label:"The fact",fact:1,
+ v:["Here's what the evidence says: {fact}","The checked version: {fact}","Actually: {fact}"],
+ s:["The strip tears away to show the fact, with the source named underneath."],
+ x:["Fact","The checked bit","Actually…"]},
+before:{w:1.6,label:"Before",
+ v:["Here's how it started: [add the starting point].","This is the before.","Take a good look at the starting point.",["Behold, the mess.","tone:funny"],["It wasn't always like this.","tone:dramatic,mysterious"]],
+ s:["The before shot in flat light, framed so it can match the after.","Same angle, plain colours and a small BEFORE label."],
+ x:["Before","The start"]},
+change:{w:1.5,label:"The change",
+ v:["Here's the one thing that changed: [add the change].","Then one thing changed.","Here's what we did differently."],
+ s:["A quick montage of the change, or a sliding panel crossing the frame."],
+ x:["The change","What changed"]},
+after:{w:1.7,label:"After",
+ v:["And this is the after.","Same place, new result.","Look at the difference.",["Glow-up complete.","tone:funny"],["And now everything looks different.","tone:dramatic"]],
+ s:["The after shot, matched exactly to the before, with a small AFTER label."],
+ x:["After","The result"]},
+set:{w:1.5,label:"The setting",
+ v:["Picture this: [add where and when].","It started on an ordinary day.","Here's where this story begins."],
+ s:["A quiet establishing shot of the place where it begins."],
+ x:["It started here","Picture this"]},
+problem:{w:1.5,label:"The problem",
+ v:["But there was a problem: [add the problem].","Then it got complicated.","Something wasn't working.",["Things, as usual, did not go to plan.","tone:funny"],["And there seemed to be no way out.","tone:dramatic"]],
+ s:["A close-up that shows the problem without any explaining."],
+ x:["The problem","Then this happened"]},
+moment:{w:1.7,label:"The moment",
+ v:["And then it clicked: [add the moment].","That was the moment it changed.","So I tried again, differently."],
+ s:["Slow push-in as the music lifts, ending on the key image."],
+ x:["The moment","It clicked"]}
+};
+var CTA_LEAD=[["Before you go.",""],["One last thing.",""],["If that helped, here's the next step.","purpose:teach,explain"],["Your turn now.","purpose:inspire"],["Over to you.","tone:calm,informative"],["Now then.","tone:bold,funny"]];
+
+/* ---------- Calls to action ---------- */
+var CTAS=[
+ "Save this for later.","Send this to someone who needs it.","Comment one thing you'd add.","Follow for the next part.","Tell me what to cover next.",
+ ["Save this for revision night.","aud:exam,teens purpose:teach,explain"],["Try it, then show a friend.","format:tutorial"],["Save this and try it tonight.","format:tutorial"],["Comment your number one.","format:list"],["Comment a myth you've heard.","format:myth"],["Share your own before and after.","format:ba"],["Tell me if you'd read it.","dom:books"],["Comment your favourite without spoilers.","dom:books spoil:none"],["Comment the date that surprised you.","dom:history"],["Try the test and tell me what happened.","dom:science"],["Pick one small step and start today.","purpose:inspire"],["Tag someone who would laugh at this.","purpose:entertain,story tone:funny"],["Would you agree? Tell me why.","purpose:review"],["What happens next? Comment your guess.","purpose:story tone:mysterious,dramatic"],["Talk about this at home tonight.","aud:parents"],["Use this in your next lesson.","aud:teachers"],["Subscribe for the next short.","plat:shorts"],["Stitch this with your own answer.","plat:tiktok"],["Save this to your reading list.","dom:books plat:reels"]
+];
+
+/* ---------- Transitions by tone ---------- */
+var TRANS={funny:["Whip pan","Pop-in zoom","Jump cut on the beat","Record-scratch freeze","Quick slide left"],dramatic:["Hard cut to black, then back","Slow zoom into a cut","Smash cut","Fade through black","Match cut"],informative:["Clean cut","Soft wipe left","Label slides out, next one slides in","Cut on the action","Quick cross-fade"],calm:["Gentle cross-dissolve","Slow fade","Soft fade through white","Slow slide","Long, soft dissolve"],bold:["Hard cut","Punch-in zoom","Slam cut on the beat","Block wipe","Fast slide up"],mysterious:["Fade through black","Slow blur dissolve","Light flicker cut, without strobing","Shadow wipe","Slow iris fade"]};
+
+/* ---------- Visual style treatments ---------- */
+var STYLES={
+ minimalist:{vis:["Lots of empty space and one subject.","A plain background with nothing competing for attention.","A single line of type, carefully aligned.","One accent colour used once in the frame.","Thin lines and no decorative effects."],prompt:"Minimalist: generous empty space, one subject per frame, restrained colour"},
+ monochrome:{vis:["Shot in black and white with strong contrast.","Grey tones, with shape and shadow doing the work.","High-contrast light across a single subject.","Halftone texture over a still image.","Solid black and white type blocks."],prompt:"Monochrome: black, white and grey with one contrast-led look, using shape and shadow"},
+ neon:{vis:["Glowing outlines on a dark background.","Coloured light reflecting from a dark surface.","Thin glowing grid lines behind the subject.","Soft colour bloom around the main shape, without flashing.","Two saturated light colours on opposite sides."],prompt:"Neon: dark scenes with glowing coloured outlines and light, no strobing"},
+ editorial:{vis:["Laid out like a magazine page with one strong image.","A large serif headline beside a narrow column of text.","A cropped image with a caption beneath it.","Clear margins and a thin ruled line.","Paper texture and a restrained colour."],prompt:"Editorial: magazine-like layouts, strong crops, considered margins"},
+ retro:{vis:["Warm, slightly faded colours with soft film grain.","Stripes and rounded shapes from a 1970s poster.","A sunburst graphic behind the subject.","A scanline texture over a title card.","A sticker-style badge in the corner."],prompt:"Retro: warm faded colour, stripes, soft grain, poster shapes"},
+ cinematic:{vis:["Shallow depth of field and one motivated light source.","A wide composition with thin letterbox bars.","Slow camera movement and deep shadow.","Backlight that separates the subject from the background.","A colour grade with deep shadows and warm highlights."],prompt:"Cinematic: shallow focus, motivated light, slow movement, graded colour"},
+ playful:{vis:["Cut-out shapes bounce into the frame.","Bright stickers and hand-drawn doodles around the subject.","Wobbly outlines and rounded type.","A paper-craft background in bright blocks.","Confetti-like shapes that settle quickly."],prompt:"Playful: bright blocks, stickers, doodles and rounded shapes"}
+};
+
+/* ---------- Colour palettes: name, background, text, accent, support, style ---------- */
+var PALETTES=[
+ ["Clean page","#FAFAF7","#1C1C1C","#B3402A","#E4E1D8","minimalist"],["Quiet slate","#F2F4F5","#1F2A33","#2F6F8F","#D6DEE3","minimalist"],["Soft moss","#F5F6F0","#23291F","#4F6C34","#DFE3D3","minimalist"],["Blue ink","#FFFFFF","#10203C","#2251CC","#E2E8F5","minimalist"],["Graphite plum","#F7F4F6","#2A2228","#7D3C6B","#E7DFE5","minimalist"],["Pale sand","#F6F1E8","#2B2620","#8A5A2B","#E5DCCB","minimalist"],
+ ["Pure contrast","#FFFFFF","#000000","#555555","#DDDDDD","monochrome"],["Blackout","#000000","#FFFFFF","#BDBDBD","#333333","monochrome"],["Charcoal","#1E1E1E","#F2F2F2","#A8A8A8","#3B3B3B","monochrome"],["Newsprint grey","#E8E8E8","#141414","#5A5A5A","#C4C4C4","monochrome"],["Steel","#2B2F33","#F5F7F8","#AEB7BF","#454C53","monochrome"],
+ ["Arcade night","#0B0620","#F4F0FF","#FF3EA5","#2CE5FF","neon"],["Electric lagoon","#04161F","#EAFBFF","#00E6C3","#FF61D2","neon"],["Ultraviolet","#12002B","#F7EEFF","#B66DFF","#FFE14D","neon"],["Volt city","#0D0D12","#F6FFE8","#C6FF2E","#39A7FF","neon"],["Plasma","#180418","#FFF0FA","#FF6B3D","#A56BFF","neon"],["Cyan grid","#050A24","#EAF2FF","#36C2FF","#FF4D8D","neon"],
+ ["Morning paper","#F7F3EC","#1A1714","#A3262A","#D8CFC0","editorial"],["Salon blue","#F1EFE9","#172033","#25468A","#D5D2C7","editorial"],["Forest column","#10291F","#F4EFE3","#E5B85C","#2B4A3B","editorial"],["Oxblood cover","#3A0D14","#F8EFE6","#F0B8A0","#5C1F29","editorial"],["Ink and rose","#FBF4F2","#231A1E","#B3305F","#EBD8D6","editorial"],
+ ["Sunset stripe","#FFF1D6","#3B1F12","#B83E16","#E9A23B","retro"],["Diner teal","#F4E9D2","#17393A","#006A6B","#E8743B","retro"],["Cassette","#2C2140","#FBEFD9","#FFB347","#E8567C","retro"],["Harvest","#3B2615","#F9EBD0","#E9A23B","#8DAF6A","retro"],["Seaside","#E9F1E4","#1F3B4D","#B23A2F","#F0C14B","retro"],
+ ["Teal and amber","#0F1C22","#F3EFE7","#F0A63C","#2A7F8A","cinematic"],["Blue hour","#0C1730","#EDF1F9","#8FB8FF","#C98B5A","cinematic"],["Ember","#160E0B","#F7EDE3","#F06A2B","#6B3A28","cinematic"],["Night forest","#0D1B14","#ECF3E8","#9BD37A","#C9A25C","cinematic"],["Velvet","#1A0F1E","#F4ECF5","#E08FB0","#6E4A8E","cinematic"],
+ ["Bubblegum","#FFE9F3","#2D1140","#C81C72","#5A5CF0","playful"],["Lemon pop","#FFF6B8","#1D2A5C","#D1301F","#1E7F73","playful"],["Mint fizz","#D8FBEA","#10323A","#7A28C7","#D13B6A","playful"],["Sky stickers","#CFE9FF","#14244A","#AE2179","#D9570D","playful"],["Grape soda","#3A1778","#FFF7E0","#FFD23F","#FF7AB6","playful"],["Tangerine","#FFE3C2","#2A1B3D","#B8320B","#006D77","playful"]
+];
+var COLOUR_NAMES={red:"#D62839",scarlet:"#D1201F",crimson:"#B0123B",maroon:"#7A1F2B",burgundy:"#6E1A2D",orange:"#EE7A1E",coral:"#F2695C",amber:"#F2A516",yellow:"#F6D21F",gold:"#D9A520",mustard:"#C99A1A",green:"#2E9A4F",lime:"#9BD22B",olive:"#6F7A2B",mint:"#6FDDB5",teal:"#0E8C8C",turquoise:"#25C2BA",cyan:"#22C7E0",aqua:"#27D3D3",blue:"#1F6FD6",navy:"#14285E",cobalt:"#1846B8",indigo:"#3F2FB5",purple:"#7A35C9",violet:"#6C3BD1",lilac:"#BDA1E8",lavender:"#B9A7E6",magenta:"#D01F92",pink:"#EE5A9E",rose:"#D94F70",brown:"#7A4A26",tan:"#C8A06F",beige:"#E4D5B7",cream:"#FBF3DC",black:"#111111",white:"#FFFFFF",grey:"#808080",gray:"#808080",silver:"#BFC4CA"};
+var COLOUR_FAMILY={scarlet:"red",crimson:"red",maroon:"red",burgundy:"red",coral:"orange",amber:"orange",gold:"yellow",mustard:"yellow",lime:"green",olive:"green",mint:"green",turquoise:"teal",cyan:"teal",aqua:"teal",navy:"blue",cobalt:"blue",indigo:"purple",violet:"purple",lilac:"purple",lavender:"purple",magenta:"pink",rose:"pink",tan:"brown",beige:"brown",cream:"white",gray:"grey",silver:"grey"};
+
+/* ---------- Typography directions ---------- */
+var UI_SANS='"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif';
+var TYPES=[
+ {id:"boldsans",name:"Bold sans-serif",head:'"Arial Black","Helvetica Neue",Arial,sans-serif',body:UI_SANS,hw:900,bw:400,ls:"-0.02em",up:false,hs:88,bs:42,pair:"A heavy sans heading with a plain sans body. The weight difference creates hierarchy, so both can stay simple.",fit:"style:minimalist,neon tone:bold,informative"},
+ {id:"editorial",name:"Editorial serif",head:'Georgia,"Times New Roman","Liberation Serif",serif',body:UI_SANS,hw:700,bw:400,ls:"-0.01em",up:false,hs:84,bs:42,pair:"A serif heading with a clean sans body. It feels thoughtful, while the sans keeps small text readable on phones.",fit:"style:editorial,cinematic tone:calm,dramatic"},
+ {id:"mono",name:"Monospace",head:'ui-monospace,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace',body:UI_SANS,hw:700,bw:400,ls:"-0.03em",up:false,hs:70,bs:40,pair:"Monospace headings with a sans body. Good for short labels, but keep body text out of monospace at small sizes.",fit:"style:monochrome tone:mysterious,informative"},
+ {id:"rounded",name:"Rounded",head:'ui-rounded,"SF Pro Rounded","Arial Rounded MT Bold","Varela Round","Trebuchet MS",sans-serif',body:'ui-rounded,"Trebuchet MS",'+UI_SANS,hw:800,bw:500,ls:"0em",up:false,hs:84,bs:42,pair:"Soft rounded headings with a friendly sans body. It suits younger viewers and light-hearted topics.",fit:"style:playful tone:funny aud:kids"},
+ {id:"condensed",name:"Condensed style",head:'Impact,Haettenschweiler,"Arial Narrow Bold","Liberation Sans Narrow","DejaVu Sans Condensed",sans-serif',body:'"Arial Narrow",'+UI_SANS,hw:700,bw:400,ls:"0.01em",up:true,hs:104,bs:42,pair:"Tall narrow capitals with a neutral body. It fits long words into a narrow column and reads like a poster.",fit:"style:retro,cinematic tone:dramatic,bold"},
+ {id:"humanist",name:"Warm humanist",head:'"Gill Sans","Gill Sans MT",Optima,Candara,Calibri,sans-serif',body:'Optima,Candara,Calibri,'+UI_SANS,hw:600,bw:400,ls:"0em",up:false,hs:86,bs:44,pair:"A humanist heading with a matching body gives a warm, quiet feel. Use weight sparingly.",fit:"style:minimalist tone:calm aud:parents,teachers"},
+ {id:"slab",name:"Slab poster",head:'Rockwell,"Roboto Slab","Courier New",Georgia,serif',body:UI_SANS,hw:700,bw:400,ls:"-0.01em",up:false,hs:80,bs:42,pair:"A chunky slab heading with a plain sans body. It feels sturdy and a little vintage.",fit:"style:retro tone:informative,funny"}
+];
+
+/* ---------- Logo directions ---------- */
+var LOGO_SHAPES=[["circle","Circle"],["squircle","Rounded square"],["hexagon","Hexagon"],["diamond","Diamond"],["split","Split circle"],["arch","Arch"],["bars","Bars"]];
+var LOGO_DIR=[
+ ["A monogram inside a plain circle, sized so it stays readable as a small profile picture.","","circle"],
+ ["A rounded square with the initials set tight, like a small app badge.","","squircle"],
+ ["An arch that frames the initials like a doorway into the topic.","","arch"],
+ ["A hexagon with initials centred, for a precise and built feel.","style:minimalist,monochrome","hexagon"],
+ ["A split circle: half filled and half outlined, suggesting two sides of an idea.","format:myth,ba","split"],
+ ["A diamond shape balanced on one point, for a sharper look.","tone:bold,dramatic","diamond"],
+ ["A glowing outline shape around bold initials, without relying on effects to stay legible.","style:neon","hexagon"],
+ ["Stacked bars behind the initials, echoing 1970s broadcast graphics, without copying any real broadcaster.","style:retro","bars"],
+ ["Rounded, slightly oversized initials in a soft shape, like a sticker.","style:playful","squircle"],
+ ["A narrow arch above serif initials, like a masthead device.","style:editorial","arch"],
+ ["A simple circle with initials in thin weight, like a film title mark.","style:cinematic","circle"],
+ ["A hexagon to suggest structure, like a molecule, with no extra detail.","dom:science","hexagon"],
+ ["An arch like an old doorway or library window.","dom:history,books","arch"]
+];
+var KW_SHAPE=[[/play|fun|cheer|bright|friend|kind|warm/i,"Soft corners suit {k}."],[/futur|tech|modern|smart|digital/i,"Clean geometry suits {k}."],[/trust|reliab|honest|safe|clear|calm/i,"A stable, symmetrical shape supports {k}."],[/bold|brave|strong|loud|power/i,"Solid fills and tight spacing support {k}."],[/curio|myster|wonder/i,"One unexpected cut or gap in the shape suits {k}."],[/elegan|luxur|classic|refin/i,"Thin spacing and restraint suit {k}."]];
+
+/* ---------- Headlines ---------- */
+var HEADS=["{TS} in {n} seconds","{TS}, explained","{TS}: the short version","What is {TS}?","Let's talk {TS}",
+ ["{TS}: a quick lesson","purpose:teach"],["{TS}, made simple","purpose:explain"],["{TS}, but make it fun","tone:funny"],["The truth about {TS}","format:myth"],["{TS}: myth or fact?","format:myth"],["How to: {TS}","format:tutorial"],["{TS} in {num} steps","format:tutorial"],["{num} things: {TS}","format:list"],["{TS}: before and after","format:ba"],["The story of {TS}","purpose:story"],["{TS}: my review","purpose:review"],["{TS}, no spoilers","dom:books spoil:none"],["{TS}: the timeline","dom:history"],["{TS}: see it work","dom:science"],["Why {TS} matters","purpose:inspire"],["The secret of {TS}","tone:mysterious"]];
+
+/* ---------- Captions ---------- */
+var CAPTIONS=[
+ "{T}, in {n} seconds. {cta}","A short guide to {t} for {aud}. {cta}","Made this for {aud}. What did I miss about {t}? {cta}","Here's how I'd explain {t} to a friend. {cta}","One idea about {t}, explained properly. {cta}",
+ ["{T}: what would you add? I checked my sources, and they're in the comments. {cta}","purpose:teach,explain"],["Here's something worth knowing about {t}: {fact} {cta}","purpose:teach,explain"],["I took on {t} so you don't have to. It went about as well as you'd expect. {cta}","tone:funny"],["Warning: contains {t} and my questionable jokes. {cta}","tone:funny"],["It all comes down to this. {T}. {cta}","tone:dramatic"],["Some stories stay with you. This is {t}. {cta}","tone:dramatic purpose:story"],["Take a minute with this one. {T}, gently explained. {cta}","tone:calm"],["A quiet look at {t}. {cta}","tone:calm"],["No filler. {T}. {cta}","tone:bold"],["Not everything about {t} is as it seems. {cta}","tone:mysterious"],["Here are the checked basics of {t}. {cta}","tone:informative"],["My honest thoughts on {t}. {cta}","purpose:review"],["{T}: no spoilers, I promise. {cta}","dom:books spoil:none"],["Spoiler warning for {t}! You've been told. {cta}","dom:books spoil:full"],["Try this step by step: {t}. {cta}","format:tutorial"],["Which point surprised you most? {T}. {cta}","format:list"],["Myth or fact? Let's check {t}. {cta}","format:myth"],["What a difference. {T}, before and after. {cta}","format:ba"],["{T} changed how I think. Maybe it will for you too. {cta}","purpose:inspire"]
+];
+
+/* ---------- Production banks ---------- */
+var PROD={
+filming:[
+ "Film a few seconds of extra footage before and after each shot, so edits have room.","Film in short sections, then choose the best take of each.","Record voiceover separately in a quiet room with soft furnishings.","Shoot vertically from the start instead of cropping later.","Wipe the lens before each session.",
+ ["Film each scene in one take if you can, reading from a cue card just below the lens.","format:talking"],["Have someone stand off-camera, so you talk to a person rather than a lens.","format:talking"],["Collect visuals first, then write labels to match what is on screen.","format:faceless"],["Use only images you made or have permission to use, and credit them.","format:faceless,doc"],["Film the location without people first, then add one human moment.","format:doc"],["Record one short interview answer, with the speaker's permission.","format:doc"],["Fix your phone above the desk so every step uses the same angle.","format:tutorial"],["Film the finished result first, in case the steps go wrong later.","format:tutorial"],["Give each list point a different background or angle.","format:list"],["Film the myth and the fact in two different spots, so the change is obvious.","format:myth"],["Mark the phone position with tape so before and after line up.","format:ba"],["Run the demonstration twice with an adult checking safety, then use the clearer take.","dom:science"],["Film maps and documents flat, under even light, with no glare.","dom:history"],["Film the book cover from the same angle each time and avoid showing later pages if you promised no spoilers.","dom:books"],["Hide usernames, passwords and notifications before recording your screen.","dom:tech"],["Use large, neat handwriting and film from directly above.","dom:maths"]
+],
+lighting:[
+ "Face a window for soft, free daylight.","Avoid bright light directly behind the subject unless a silhouette is the idea.","Turn off mixed room lights if the colours clash with daylight.",
+ ["Use one soft side light, and let the other side fall into gentle shadow.","tone:calm,mysterious"],["Use one strong light from the side for sharper shadows.","tone:dramatic"],["Keep lighting bright and even so expressions read clearly.","tone:funny,informative"],["Light the subject hard and frontally, for a punchy look.","tone:bold"],["Use a coloured LED or a screen in a dark room, without any flashing effects.","style:neon"],["Use low, directional light and let the background fall dark.","style:cinematic"],["Choose light that makes shape and shadow clear, since colour won't help.","style:monochrome"],["Use warm lamps and a slightly lower camera exposure.","style:retro"],["Use even, shadow-free light on a plain surface.","style:minimalist"],["Use bright, flat light so colours stay vivid.","style:playful"],["Use diffused light from one side, as in a magazine portrait.","style:editorial"]
+],
+framing:[
+ "Keep faces and key objects inside the central safe area.","Leave room near the bottom for captions and platform buttons.","Rest the phone on something stable, or use a tripod.",
+ ["Frame from the chest up with your eyes about a third of the way down.","format:talking"],["Fill the frame with one object at a time, with no clutter.","format:faceless"],["Mix one wide shot, one medium shot and one close-up.","format:doc"],["Show hands and materials clearly, with nothing blocking the action.","format:tutorial"],["Match before and after framing exactly.","format:ba"],["Keep the number in the same corner for each point.","format:list"],["Put the claim at the top and the verdict at the centre.","format:myth"],["Use a slightly low angle for confidence.","tone:bold"],["Use wide, still frames with space around the subject.","tone:calm"],["Hide part of the subject in shadow or behind an object.","tone:mysterious"],["Hold tight on faces for reactions.","tone:funny,dramatic"]
+],
+editing:[
+ "Cut any silence or filler at the start of each clip.","Check the edit with the sound off: does it still make sense?","Keep one caption style throughout.",
+ ["Cut roughly every 2 seconds, and never leave text up for less time than it takes to read.","dur:15"],["Allow each idea one clean beat, then move on.","dur:30"],["Change the visual every few seconds, and add a small recap around the middle.","dur:60"],["Time cuts to punchlines and leave a short pause after each joke.","tone:funny"],["Let a moment of silence sit before the reveal.","tone:dramatic,mysterious"],["Use longer shots and gentle dissolves. Avoid sudden zooms.","tone:calm"],["Highlight labels as they are spoken.","tone:informative"],["Use tight jump cuts and bold text changes.","tone:bold"],["Number each step on screen and leave the finished result up for at least a second.","format:tutorial"],["Add a small progress marker, such as 2 of 3, so viewers know how far along they are.","format:list"],["Use one sound and colour for myth and another for fact, plus a text label.","format:myth"],["Make the reveal wipe slow enough for the change to be seen.","format:ba"],["Keep labels on screen long enough to read and pointing at the right part.","dom:science"],["Show dates on screen each time the period changes.","dom:history"],["Add a clear spoiler warning at the start, on screen and spoken.","dom:books spoil:full"]
+],
+music:[
+ "Keep music low under speech, so every word is clear.",
+ ["Playful, bouncy rhythm with light percussion and room for comic pauses.","tone:funny"],["Slow build with low strings or drums, and a brief silence before the key moment.","tone:dramatic"],["Light, steady electronic or acoustic bed with little melody.","tone:informative"],["Soft piano or ambient pads at a slow pace.","tone:calm"],["Driving beat with a strong, confident pulse.","tone:bold"],["Sparse, low drones with a few distant notes.","tone:mysterious"],["Warm, lifting chords that grow towards the end.","purpose:inspire"],["A short musical sting for each new point.","format:list,myth"],["A mood that fits the book's world, kept quiet under narration.","dom:books"]
+]};
+var A11Y_BASE=["Add accurate subtitles to all speech, and check names and technical words by hand.","Keep captions to one or two short lines and leave them on screen long enough to read.","Mention anything important that is only shown visually, so the voiceover works alone.","Add alt text or a description when the platform offers it.","Never rely on colour alone. Add a word, tick, cross or icon."];
+
+/* ---------- Examples: only widely documented facts ---------- */
+var EXAMPLES=[
+ {topic:"Why the Moon has phases",audience:"Students aged 13 to 16",purpose:"explain",domain:"auto",platform:"tiktok",duration:"30",tone:"informative",format:"faceless",brand:"Pocket Lab",kw1:"curious",kw2:"clear",kw3:"friendly",style:"neon",colIn:"",colOut:"brown",cta:"Save this for your next science lesson.",avoid:"flashing lights, slang",facts:"Moonlight is sunlight reflected off the Moon's surface.\nThe Moon takes about 29.5 days to go from one new moon to the next.\nChecked on NASA's Moon pages.",spoiler:"none",bookAngle:"review"},
+ {topic:"The Great Fire of London",audience:"Students revising for exams",purpose:"story",domain:"auto",platform:"shorts",duration:"60",tone:"dramatic",format:"doc",brand:"Past Tense",kw1:"bold",kw2:"trustworthy",kw3:"vivid",style:"cinematic",colIn:"amber",colOut:"",cta:"Comment the detail you'll remember.",avoid:"graphic images, made-up quotes",facts:"The Great Fire of London began in a bakery on Pudding Lane in September 1666.\nThe fire burned for about four days.\nChecked with the Museum of London's learning pages.",spoiler:"none",bookAngle:"review"},
+ {topic:"Animal Farm by George Orwell",audience:"Students aged 13 to 16",purpose:"review",domain:"auto",platform:"reels",duration:"30",tone:"bold",format:"talking",brand:"Shelf Life",kw1:"honest",kw2:"bold",kw3:"thoughtful",style:"editorial",colIn:"",colOut:"",cta:"Tell me if you'd read it.",avoid:"plot twists, the ending",facts:"Animal Farm was first published in 1945.",spoiler:"none",bookAngle:"review"},
+ {topic:"How to make active recall flashcards",audience:"Students revising for exams",purpose:"teach",domain:"auto",platform:"reels",duration:"15",tone:"calm",format:"tutorial",brand:"Quiet Desk",kw1:"calm",kw2:"tidy",kw3:"trustworthy",style:"minimalist",colIn:"teal",colOut:"red",cta:"Save this for revision night.",avoid:"study-hour promises, grades claims",facts:"Active recall means testing yourself from memory instead of re-reading notes.",spoiler:"none",bookAngle:"review"}
+];
+
+var SHORT={why:"Here's why.",ctx:"First, some background.",q:"So what's happening?",ex:"Picture this.",label:"Here are the parts.",demo:"Watch this.",turn:"Then it turned.",source:"Check the source.",work:"Work it through.",take:"Remember that.",premise:"Here's the setup.",mood:"Here's the feeling.",tension:"Then trouble starts.",quote:"One line stands out.",verdict:"My verdict's coming.",good:"Here's what works.",bad:"Here's what doesn't.",mistake:"Watch out here.",result:"Here's the result.",result2:"And it's done.",before:"This is before.",change:"Then it changed.",after:"And this is after.",set:"Picture the scene.",problem:"Then came trouble.",moment:"Then it clicked."};
+
+/* ---------- Helpers ---------- */
+var WPS_GEN=2.4,WPS_MAX=2.5,PLACE="[add a verified fact]";
+function words(s){if(!s)return 0;return String(s).replace(/\[[^\]]*\]/g," x x x x x ").trim().split(/\s+/).filter(Boolean).length}
+function hasPlace(s){return /\[[^\]]*\]/.test(s||"")}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s}
+function rngFrom(seed){var a=(seed*2654435761+1013904223)>>>0;return function(){a=(a+0x6D2B79F5)>>>0;var t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
+function hashStr(s){var h=7;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h}
+function clean(s){return String(s==null?"":s).replace(/\s+/g," ").trim()}
+function endStop(s){s=clean(s);if(!s)return s;return /[.!?…]$/.test(s)?s:s+"."}
+function norm(x){return typeof x==="string"?{t:x,c:""}:{t:x[0],c:x[1]||""}}
+function condCount(c){return c?c.split(" ").filter(Boolean).length:0}
+function condOK(c,ctx){if(!c)return true;return c.split(" ").filter(Boolean).every(function(tok){var i=tok.indexOf(":"),k=tok.slice(0,i),v=tok.slice(i+1),cur=String(ctx.c[k]);if(v.charAt(0)==="!")return v.slice(1).split(",").indexOf(cur)<0;return v.split(",").indexOf(cur)>=0})}
+function avoided(t,ctx){var l=t.toLowerCase();return ctx.avoid.some(function(a){return a.length>2&&l.indexOf(a)>=0})}
+function weighted(list,rng){var tot=0,i;for(i=0;i<list.length;i++)tot+=1+3*condCount(list[i].c);var r=rng()*tot;for(i=0;i<list.length;i++){r-=1+3*condCount(list[i].c);if(r<=0)return list[i]}return list[list.length-1]}
+function eligible(bank,ctx){var all=bank.map(norm).filter(function(x){return condOK(x.c,ctx)});var f=all.filter(function(x){return !avoided(x.t,ctx)});return f.length?f:all}
+function fill(t,ctx,extra){var v=Object.assign({},ctx.vars,extra||{});return t.replace(/\{(\w+)\}/g,function(m,k){if(k==="prop")return ctx.nextProp();if(k==="Prop")return cap(ctx.nextProp());return v[k]!=null?v[k]:m})}
+function shortTopic(s){s=clean(s).replace(/[.?!:;,]+$/,"");var n=s.split(" ").length;if(n<=6&&s.length<=48)return s;var p=clean(s.split(/\s*[:–—]\s+|\s+-\s+|\s+by\s+/i)[0]);if(p.split(" ").length<=6&&p.length<=48)return p;return "this topic"}
+function tinyTopic(s,long){s=clean(s).replace(/[.?!:;,]+$/,"");if(s.length<=26)return s;var out="",parts=s.split(" ");for(var i=0;i<parts.length;i++){var n=out?out+" "+parts[i]:parts[i];if(n.length>26)break;out=n}return out||"This topic"}
+function detectDomain(topic,choice){if(choice&&choice!=="auto"&&DOMAINS[choice])return{id:choice,word:null};var keys=Object.keys(DOMAINS);for(var i=0;i<keys.length;i++){var d=DOMAINS[keys[i]];if(!d.re)continue;var m=topic.match(new RegExp("(^|[^\\p{L}])("+d.re+")(?![\\p{L}])","iu"));if(m)return{id:keys[i],word:m[2]}}return{id:"general",word:null}}
+function detectAud(a){for(var i=0;i<AUD_RULES.length;i++)if(AUD_RULES[i][1].test(a))return AUD_RULES[i][0];return "general"}
+function hexRgb(h){h=h.replace("#","");return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
+function lum(h){var c=hexRgb(h).map(function(v){v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4)});return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function contrast(a,b){var x=lum(a),y=lum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+function hsl(h){var c=hexRgb(h).map(function(v){return v/255}),M=Math.max.apply(0,c),m=Math.min.apply(0,c),d=M-m,l=(M+m)/2,s=d===0?0:d/(1-Math.abs(2*l-1)),H=0;if(d){if(M===c[0])H=((c[1]-c[2])/d+6)%6;else if(M===c[1])H=(c[2]-c[0])/d+2;else H=(c[0]-c[1])/d+4;H*=60}return{h:H,s:s,l:l}}
+function family(hex){var x=hsl(hex);if(x.s<.12||x.l<.06||x.l>.96){if(x.l<.25)return"black";if(x.l>.85)return"white";return"grey"}var h=x.h;if(h<14||h>=345)return"red";if(h<42)return x.l<.42?"brown":"orange";if(h<68)return"yellow";if(h<160)return"green";if(h<195)return"teal";if(h<255)return"blue";if(h<300)return"purple";return"pink"}
+function onAccent(l){return contrast(l.accent,l.text)>=contrast(l.accent,l.bg)?l.text:l.bg}
+function parseColours(s){var out={list:[],unknown:[]};String(s||"").split(/,|;|\band\b|\bor\b/i).map(clean).filter(Boolean).forEach(function(tok){var m=tok.match(/#?([0-9a-f]{6}|[0-9a-f]{3})\b/i);if(m&&(tok.charAt(0)==="#"||/\d/.test(m[1]))){var h=m[1];if(h.length===3)h=h.split("").map(function(c){return c+c}).join("");h="#"+h.toUpperCase();out.list.push({hex:h,fam:family(h),raw:tok});return}var low=tok.toLowerCase().replace(/^(light|dark|bright|pale|deep|no|avoid|include)\s+/,"");var key=Object.keys(COLOUR_NAMES).filter(function(n){return new RegExp("\\b"+n+"\\b").test(low)})[0];if(key){out.list.push({hex:COLOUR_NAMES[key],fam:COLOUR_FAMILY[key]||key,raw:tok})}else out.unknown.push(tok)});return out}
+function initialsFrom(s){var skip={the:1,a:1,an:1,of:1,and:1,how:1,why:1,to:1,in:1};var ws=clean(s).split(" ").filter(Boolean);var sig=ws.filter(function(w){return !skip[w.toLowerCase()]});if(!sig.length)sig=ws;if(!sig.length)return"RP";var chars=sig.slice(0,2).map(function(w){return Array.from(w)[0]||""}).join("");return chars.toUpperCase()}
+function splitFacts(txt){var facts=[],sources=[];String(txt||"").split(/\n+/).map(clean).filter(Boolean).forEach(function(l){if(/https?:\/\/|^(source|sources|checked|from|see|ref|reference)\b/i.test(l))sources.push(l);else facts.push(l)});return{facts:facts,sources:sources}}
+
+/* ---------- Context ---------- */
+var ORD=["one","two","three","four","five","six"];
+function makeCtx(b,seed){
+ var d=detectDomain(b.topic,b.domain),aud=detectAud(b.audience),rng=rngFrom(seed+hashStr(b.topic)%9973),dur=+b.duration;
+ var t=shortTopic(b.topic),ts=tinyTopic(t==="this topic"?b.topic:t),audS=clean(b.audience);
+ if(audS.length>42)audS="this audience";else if(!/^[A-Z]{2}/.test(audS)&&audS)audS=audS.charAt(0).toLowerCase()+audS.slice(1);
+ var f=splitFacts(b.facts),dom=DOMAINS[d.id],pi=Math.floor(rng()*3);
+ var ctx={b:b,seed:seed,rng:rng,dom:dom,domId:d.id,domWord:d.word,facts:f.facts.slice(),allFacts:f.facts,sources:f.sources,used:{},usedFacts:{},stepN:0,itemN:0,styleI:Math.floor(rng()*5),
+  avoid:String(b.avoid||"").split(/[,\n;]/).map(function(x){return clean(x).toLowerCase()}).filter(Boolean),
+  c:{tone:b.tone,purpose:b.purpose,format:b.format,style:b.style,dom:d.id,aud:aud,dur:String(dur),plat:b.platform,spoil:b.spoiler,angle:b.bookAngle},
+  nextProp:function(){pi=(pi+1)%dom.props.length;return dom.props[pi]}};
+ ctx.vars={t:t,T:cap(t),ts:ts,TS:cap(ts),aud:audS||"this audience",n:String(dur),num:dur===15?"3":dur===30?"3":"5",brand:b.brand||"",cta:"",fact:PLACE};
+ return ctx;
+}
+
+/* ---------- Hooks ---------- */
+function genHooks(ctx,old){
+ var limit={15:9,30:12,60:14}[+ctx.b.duration],types=Object.keys(HOOKS),seen={};
+ if(old)old.hooks.forEach(function(h){seen[h.say]=1});
+ var hooks=types.map(function(type,i){
+  var prev=old&&old.hooks[i];if(prev&&prev.pinned)return prev;
+  var bank=HOOKS[type],isVis=type==="visual";
+  var items=bank.map(function(x){return isVis?{t:x[1],v:x[0],c:x[2]||""}:norm(x)}).filter(function(x){return condOK(x.c,ctx)&&!avoided(x.t,ctx)});
+  if(!items.length)items=bank.map(function(x){return isVis?{t:x[1],v:x[0],c:""}:norm(x)}).filter(function(x){return !x.c});
+  var ok=items.filter(function(x){return words(fill(x.t,ctx))<=limit&&!seen[fill(x.t,ctx)]});
+  if(!ok.length)ok=items.filter(function(x){return words(fill(x.t,ctx,{t:"this",T:"This"}))<=limit});
+  if(!ok.length)ok=items;
+  var ch=weighted(ok,ctx.rng),say=fill(ch.t,ctx);
+  if(words(say)>limit)say=fill(ch.t,ctx,{t:"this",T:"This"});
+  return{type:type,say:say,visual:ch.v?fill(ch.v,ctx):"",why:HOOK_WHY[type][ctx.b.purpose],pinned:false};
+ });
+ return hooks;
+}
+function hookOrder(p){var m={teach:"question",entertain:"surprise",explain:"question",inspire:"problem",review:"question",story:"surprise"}[p];return[m].concat(["visual","challenge","problem","surprise","question"].filter(function(x){return x!==m}))}
+
+/* ---------- Scenes ---------- */
+function structBeats(s,dur){var b=s.split(" ").filter(function(k){if(/\+$/.test(k))return dur>=60;if(/\?$/.test(k))return dur>=30;return true}).map(function(k){return k.replace(/[?+]$/,"")});while(dur===15&&b.length>5){var at=b.lastIndexOf("take");b.splice(at>0?at:b.length-2,1)}return b}
+function chooseStruct(ctx){
+ var list=STRUCTS.map(function(s){return{name:s[0],t:s[1],c:s[2]}}).filter(function(s){return condOK(s.c,ctx)});
+ var max=Math.max.apply(0,list.map(function(s){return condCount(s.c)}));
+ var strict=ctx.domId==="books"||ctx.seed%3!==2;
+ var pool=strict?list.filter(function(s){return condCount(s.c)===max}):list;
+ return pool[Math.floor(ctx.rng()*pool.length)];
+}
+function allocate(beats,dur,hookS,ctaS,ctx){
+ var mid=beats.length-2,left=dur-hookS-ctaS,secs=new Array(beats.length),i;
+ secs[0]=hookS;secs[beats.length-1]=ctaS;
+ var hasF=ctx.allFacts.length>0;
+ var ws=beats.slice(1,-1).map(function(b){return BEATS[b].w+(hasF&&BEATS[b].fact?1:0)});
+ var tot=ws.reduce(function(a,b){return a+b},0),spare=left-2*mid,raw=ws.map(function(w){return spare*w/tot});
+ var fl=raw.map(Math.floor),rem=spare-fl.reduce(function(a,b){return a+b},0);
+ var ord=raw.map(function(r,j){return[r-Math.floor(r),j]}).sort(function(a,b){return b[0]-a[0]});
+ for(i=0;i<rem;i++)fl[ord[i%ord.length][1]]++;
+ for(i=0;i<mid;i++)secs[i+1]=2+fl[i];
+ return secs;
+}
+function pickFact(ctx,budget){
+ for(var i=0;i<ctx.facts.length;i++){if(!ctx.usedFacts[i]&&words(ctx.facts[i])<=budget)return{i:i,text:ctx.facts[i]}}
+ var unused=ctx.facts.some(function(f,i){return !ctx.usedFacts[i]});
+ return{i:-1,text:unused?"[shorten your checked fact to about "+budget+" words]":PLACE};
+}
+function composeVoice(key,ctx,budget,extra){
+ var def=BEATS[key],parts=[],left=budget,hadPlace=false,tries=0;
+ var f=pickFact(ctx,budget),all=eligible(def.v,ctx);
+ function render(x){return fill(x.t.replace(/^~/,""),ctx,Object.assign({fact:f.text},extra))}
+ while(tries++<3){
+  var cand=all.filter(function(x){if(parts.length===0&&x.t.charAt(0)==="~")return false;if(ctx.used[key+x.t])return false;if(hadPlace&&(/\{fact\}|\[/.test(x.t)))return false;return words(render(x))<=left});
+  if(!cand.length&&parts.length===0)cand=all.filter(function(x){return x.t.charAt(0)!=="~"&&words(render(x))<=left});
+  if(!cand.length)break;
+  var ch=weighted(cand,ctx.rng),txt=render(ch);ctx.used[key+ch.t]=1;
+  if(/\{fact\}/.test(ch.t)&&f.i>=0)ctx.usedFacts[f.i]=1;
+  if(/\{fact\}|\[/.test(ch.t))hadPlace=true;
+  parts.push(txt);left-=words(txt);
+  if(left<4||(budget-left)/budget>=.72)break;
+ }
+ if(!parts.length){var sh=all.filter(function(x){return x.t.charAt(0)!=="~"}).map(render).sort(function(a,b){return words(a)-words(b)})[0];if(words(sh)>budget){var ph=sh.match(/\[[^\]]*\]/);sh=ph?ph[0]:(SHORT[key]||"Keep watching.")}parts.push(sh)}
+ return{text:parts.join(" "),hadFact:/\[(add a verified|shorten)/.test(parts.join(" ")),usedFact:false};
+}
+function pickX(bank,ctx,extra){var list=eligible(bank,ctx).filter(function(x){return words(fill(x.t,ctx,extra))<=6&&fill(x.t,ctx,extra).length<=34});if(!list.length)return bank===HEADS?ctx.vars.TS:fill(eligible(bank,ctx)[0].t,ctx,extra);return fill(weighted(list,ctx.rng).t,ctx,extra)}
+function styleLine(ctx){var a=STYLES[ctx.b.style].vis;return a[(ctx.styleI++)%a.length]}
+function ctaShort(c){if(words(c)<=6&&c.length<=34&&!hasPlace(c))return c.replace(/\.$/,"");return "Your turn"}
+function genScenes(ctx,old,cta,hooks,hookIdx){
+ var dur=+ctx.b.duration,keep=old&&old.scenes.some(function(s){return s.pinned})&&+old.brief.duration===dur;
+ var struct,beats,secs,hook=hooks[hookIdx],note="";
+ var hookW=words(hook.say);
+ var hookS=Math.min({15:4,30:5,60:6}[dur],Math.max(dur===15?3:3,Math.ceil(hookW/WPS_GEN)));
+ var ctaBase=words(cta),ctaS=Math.min({15:4,30:5,60:6}[dur],Math.max(dur===15?2:dur===30?3:4,Math.ceil(ctaBase/WPS_GEN)));
+ if(keep){struct={name:old.structure};beats=old.scenes.map(function(s){return s.beat});secs=old.scenes.map(function(s){return s.secs})}
+ else{if(old&&old.scenes.some(function(s){return s.pinned}))note="Kept scenes were replaced because the duration changed.";struct=chooseStruct(ctx);beats=structBeats(struct.t,dur);secs=allocate(beats,dur,hookS,ctaS,ctx)}
+ var trans=TRANS[ctx.b.tone],ti=Math.floor(ctx.rng()*trans.length);
+ var scenes=beats.map(function(key,i){
+  var prev=keep?old.scenes[i]:null;
+  if(prev&&prev.pinned)return prev;
+  var s=secs[i],budget=Math.max(3,Math.round(s*WPS_GEN)),last=i===beats.length-1;
+  var nextT=last?"End on a held frame":trans[(ti+i)%trans.length];
+  if(key==="hook"){
+   var vis=hook.visual||fill(HOOKS.visual[(ctx.seed)%4][0],ctx);
+   var head=pickX(HEADS,ctx);
+   return{beat:"hook",label:"Opening hook",secs:s,visual:vis+" "+styleLine(ctx),voice:hook.say,text:head,trans:nextT,pinned:false};
+  }
+  if(key==="cta"){
+   var voice=cta,left=budget-words(cta);
+   if(left>=3){var leads=eligible(CTA_LEAD,ctx).filter(function(x){return words(x.t)<=left});if(leads.length&&dur>=30)voice=weighted(leads,ctx.rng).t+" "+cta}
+   var endV=ctx.b.brand?"End card with the logo, the brand name and the call to action.":"End card with the call to action in large type.";
+   return{beat:"cta",label:"Call to action",secs:s,visual:endV+" "+styleLine(ctx),voice:voice,text:ctaShort(cta),trans:nextT,pinned:false};
+  }
+  var def=BEATS[key],extra={};
+  if(key==="step"){ctx.stepN++;extra={i:String(ctx.stepN),ord:ORD[ctx.stepN-1]}}
+  if(key==="item"){ctx.itemN++;extra={i:String(ctx.itemN),ord:ORD[ctx.itemN-1]}}
+  var v=composeVoice(key,ctx,budget,extra);
+  var x=(def.fact&&v.hadFact)?PLACE:pickX(def.x,ctx,extra);
+  var pv=eligible(def.s,ctx);
+  return{beat:key,label:def.label,secs:s,visual:fill(weighted(pv,ctx.rng).t,ctx,extra)+" "+styleLine(ctx),voice:v.text,text:x,trans:nextT,pinned:false};
+ });
+ return{scenes:scenes,structure:struct.name,note:note};
+}
+
+/* ---------- Palettes ---------- */
+function toPal(p){return{name:p[0],bg:p[1],text:p[2],accent:p[3],support:p[4],style:p[5],why:"",pinned:false}}
+function genPalettes(ctx,old){
+ var avoidC=parseColours(ctx.b.colOut),inc=parseColours(ctx.b.colIn),avoidF={};avoidC.list.forEach(function(c){avoidF[c.fam]=1});
+ var tone=ctx.b.tone,style=ctx.b.style;
+ var all=PALETTES.map(toPal),pool=all.filter(function(p){return ![p.bg,p.text,p.accent,p.support].some(function(h){return avoidF[family(h)]})});
+ var avoidedAll=!pool.length;if(avoidedAll)pool=all;
+ var oldNames={};if(old)old.palettes.forEach(function(p){oldNames[p.name]=1});
+ var scored=pool.map(function(p){var s=ctx.rng()*2.5,sat=hsl(p.accent).s,dark=lum(p.bg)<.2;if(p.style===style)s+=7;if(oldNames[p.name])s-=2.2;
+  if(tone==="calm")s+=(1-sat)*5;if(tone==="bold")s+=sat*3;if(tone==="mysterious"&&dark)s+=2.5;if(tone==="dramatic"&&dark)s+=2;if(tone==="informative"&&!dark)s+=2;if(tone==="funny"&&!dark)s+=sat*2;if(ctx.c.aud==="kids"&&!dark)s+=1.5;
+  return{p:p,s:s}}).sort(function(a,b){return b.s-a.s}).map(function(x){return x.p});
+ var chosen=[],fams={};
+ for(var i=0;i<scored.length&&chosen.length<3;i++){var f=family(scored[i].accent);if(!fams[f]){fams[f]=1;chosen.push(scored[i])}}
+ for(i=0;i<scored.length&&chosen.length<3;i++){if(chosen.indexOf(scored[i])<0)chosen.push(scored[i])}
+ var out=[0,1,2].map(function(i){if(old&&old.palettes[i]&&old.palettes[i].pinned)return old.palettes[i];var p=Object.assign({},chosen[i]);
+  var why=[];
+  if(p.style===style)why.push("Matches your "+label("style",style).toLowerCase()+" style.");else why.push("A contrasting option from the "+label("style",p.style).toLowerCase()+" set.");
+  if(tone==="calm"&&hsl(p.accent).s<.6)why.push("The restrained accent suits a calm tone.");
+  if(lum(p.bg)<.2&&(tone==="dramatic"||tone==="mysterious"))why.push("The dark background supports the "+tone+" mood.");
+  if(tone==="bold"&&hsl(p.accent).s>=.7)why.push("The saturated accent suits a bold tone.");
+  if(inc.list[0]){var c=inc.list[0].hex;p.accent=c;if(contrast(c,p.bg)<3&&contrast(c,p.text)>=3){var t=p.bg;p.bg=p.text;p.text=t}if(inc.list[1])p.support=inc.list[1].hex;why.push("Uses your colour "+c+" as the accent.")}
+  if(avoidedAll)why.push("Your avoid list ruled out every palette, so this one may include those colours.");
+  p.why=why.join(" ");return p});
+ return out;
+}
+
+/* ---------- Typography, logo, copy ---------- */
+function rankTypes(ctx){return TYPES.map(function(t){var sc=0,why=[];t.fit.split(" ").forEach(function(tok){var i=tok.indexOf(":"),k=tok.slice(0,i);if(tok.slice(i+1).split(",").indexOf(ctx.c[k])>=0){sc+=1;why.push(ctx.c[k])}});return{t:t,s:sc+ctx.rng()*.8,why:why}}).sort(function(a,b){return b.s-a.s})}
+function genLogo(ctx,old){
+ if(old&&old.logo.pinned)return old.logo;
+ var src=ctx.b.brand||ctx.b.topic,items=LOGO_DIR.map(function(x){return{t:x[0],c:x[1],shape:x[2]}}).filter(function(x){return condOK(x.c,ctx)});
+ var ch=weighted(items,ctx.rng),extra=[];
+ [ctx.b.kw1,ctx.b.kw2,ctx.b.kw3].forEach(function(k){k=clean(k);if(!k)return;for(var i=0;i<KW_SHAPE.length;i++){if(KW_SHAPE[i][0].test(k)){extra.push(KW_SHAPE[i][1].replace("{k}","“"+k+"”"));break}}});
+ return{initials:Array.from(initialsFrom(src)).slice(0,3).join(""),shape:ch.shape,showName:!!ctx.b.brand,direction:ch.t+" "+extra.join(" "),pinned:false};
+}
+function pickMany(bank,n,ctx,prev){
+ var kept=(prev||[]).filter(function(x){return x.pinned}),oldT={};(prev||[]).forEach(function(x){oldT[x.text]=1});
+ var pool=eligible(bank,ctx),out=kept.slice();
+ var fresh=pool.filter(function(x){return !oldT[x.t]});
+ if(fresh.length<n-kept.length)fresh=pool.slice();
+ while(out.length<n&&fresh.length){var ch=weighted(fresh,ctx.rng);fresh.splice(fresh.indexOf(ch),1);if(!out.some(function(o){return o.text===ch.t}))out.push({text:ch.t,pinned:false})}
+ return out;
+}
+function genCaptions(ctx,old,cta){
+ var fact=ctx.allFacts[0]&&words(ctx.allFacts[0])<25?endStop(ctx.allFacts[0]):PLACE;
+ var seen={};if(old)old.captions.forEach(function(c){seen[c.tpl]=1});
+ var pool=eligible(CAPTIONS,ctx),res=[],i;
+ var fresh=pool.filter(function(x){return !seen[x.t]});if(fresh.length<3)fresh=pool.slice();
+ for(i=0;i<3;i++){if(old&&old.captions[i]&&old.captions[i].pinned){res.push(old.captions[i]);continue}var ch=weighted(fresh,ctx.rng);fresh.splice(fresh.indexOf(ch),1);res.push({tpl:ch.t,text:fill(ch.t,ctx,{cta:cta,fact:fact}),pinned:false})}
+ return res;
+}
+function tagify(s){return clean(s).split(" ").filter(function(w){return !/^(the|a|an|of|how|to|why|and|in|on|for|is|has|have|by|what)$/i.test(w)}).slice(0,3).map(function(w){w=w.replace(/[^\p{L}\p{N}]/gu,"");return w?Array.from(w)[0].toUpperCase()+Array.from(w).slice(1).join(""):""}).join("")}
+function genTags(ctx,old){
+ var fmt={talking:"TalkingToCamera",faceless:"ExplainerVideo",doc:"MiniDocumentary",tutorial:"HowToVideo",list:"QuickList",myth:"MythVsFact",ba:"BeforeAndAfter"}[ctx.b.format];
+ var pur={teach:"LearnWithMe",entertain:"JustForFun",explain:"ExplainedSimply",inspire:"StudentVoices",review:"HonestReview",story:"ShortStory"}[ctx.b.purpose];
+ var pl={reels:"ReelsForLearning",tiktok:"LearnOnTikTok",shorts:"Shorts"}[ctx.b.platform];
+ var tp=ctx.vars.t==="this topic"?tagify(ctx.b.topic):tagify(ctx.vars.t),br=ctx.b.brand?tagify(ctx.b.brand):"";
+ var rest=[ctx.dom.tags[0],ctx.dom.tags[1],fmt,pur,pl].filter(Boolean);
+ for(var i=rest.length-1;i>0;i--){var j=Math.floor(ctx.rng()*(i+1)),x=rest[i];rest[i]=rest[j];rest[j]=x}
+ var all=[tp,br].concat(rest).filter(Boolean),uniq=[];all.forEach(function(t){t="#"+t;if(uniq.indexOf(t)<0)uniq.push(t)});
+ return [0,1,2,3,4].map(function(i){if(old&&old.tags[i]&&old.tags[i].pinned)return old.tags[i];return{text:uniq[i]||"#Learning",pinned:false}});
+}
+
+/* ---------- Build a whole plan ---------- */
+function buildPlan(brief,seed,old){
+ var ctx=makeCtx(brief,seed);
+ var ctaOpts=pickMany(CTAS,5,ctx,null).map(function(x){return x.text}).filter(function(c){return c!==brief.cta});
+ var suggested=!clean(brief.cta);
+ var cta=endStop(brief.cta)||ctaOpts[0];ctx.vars.cta=cta;
+ var hooks=genHooks(ctx,old);
+ var order=hookOrder(brief.purpose),types=Object.keys(HOOKS),hookIdx=types.indexOf(order[seed%order.length]);
+ if(old&&old.hooks[old.hookIdx]&&old.hooks[old.hookIdx].pinned)hookIdx=old.hookIdx;
+ var sc=genScenes(ctx,old,cta,hooks,hookIdx);
+ var palettes=genPalettes(ctx,old),palIdx=0,look;
+ if(old&&old.palettes[old.palIdx]&&old.palettes[old.palIdx].pinned){palIdx=old.palIdx;look=old.look}else{palIdx=seed%3;look=pick4(palettes[palIdx])}
+ var ranked=rankTypes(ctx),typeOrder=ranked.map(function(r){return r.t.id}),typeWhy={};ranked.forEach(function(r){typeWhy[r.t.id]=r.why});
+ var typeId=old&&old.typePinned?old.typeId:typeOrder[seed%2];
+ var prod={};Object.keys(PROD).forEach(function(k){prod[k]=pickMany(PROD[k],{filming:4,lighting:3,framing:3,editing:4,music:3}[k],ctx,old&&old.prod[k])});
+ return{brief:brief,seed:seed,hooks:hooks,hookIdx:hookIdx,scenes:sc.scenes,structure:sc.structure,sceneNote:sc.note,cta:cta,ctaSuggested:suggested,ctaOpts:ctaOpts,palettes:palettes,palIdx:palIdx,look:look,typeId:typeId,typePinned:!!(old&&old.typePinned),typeOrder:typeOrder,typeWhy:typeWhy,logo:genLogo(ctx,old),captions:genCaptions(ctx,old,cta),tags:genTags(ctx,old),prod:prod,promptEdits:{},
+  domId:ctx.domId,audKind:ctx.c.aud,domNote:ctx.dom.note,domCheck:ctx.dom.check,audNote:AUD_NOTES[ctx.c.aud],allFacts:ctx.allFacts,sources:ctx.sources,shortT:ctx.vars.t};
+}
+function pick4(p){return{name:p.name,bg:p.bg,text:p.text,accent:p.accent,support:p.support}}
+
+/* ---------- Plan Check rules ---------- */
+var CLAIM_RE=/\b(guarantee[ds]?|proven|always|never|cures?|best ever|scientists say|studies show|everyone knows|100%|\d+ ?%|instantly|miracle)\b/i;
+function checkPlan(plan,live){
+ var res=[],b=live||plan.brief,S=plan.scenes,dur=+b.duration,pl=[];
+ function add(title,status,items){res.push({title:title,status:status,items:items})}
+ var vague=/^(everyone|anyone|people|all|general|teens?|students?)$/i.test(clean(b.audience));
+ var tw=clean(b.topic).length;
+ add("Audience and topic",tw<4||!clean(b.audience)?"fail":vague?"warn":"pass",[tw<4?"The topic is very short. Add a few more words.":"Topic: "+clean(b.topic).slice(0,90)+(tw>90?"…":""),!clean(b.audience)?"No audience is given.":vague?"“"+clean(b.audience)+"” is broad. Name an age, level or interest.":"Audience: "+clean(b.audience).slice(0,90)]);
+ var opener=S[0],hookOK=opener&&words(opener.voice)>=2,hooksN=plan.hooks.filter(function(h){return clean(h.say)}).length;
+ add("Opening hook",!hookOK?"fail":opener.secs>6?"warn":"pass",[hookOK?"Scene 1 opens with spoken words and lasts "+opener.secs+" seconds.":"Scene 1 has no spoken hook.",hooksN+" of 5 hook options are filled in.",opener&&opener.secs>6?"The opening runs past 6 seconds. Try making it shorter.":""]);
+ var total=S.reduce(function(a,s){return a+(+s.secs||0)},0),bad0=S.filter(function(s){return !(+s.secs>0)}).length;
+ add("Scene timings",total!==dur||bad0?"fail":"pass",["Scenes total "+total+" seconds. Selected duration: "+dur+" seconds.",total!==dur?"Use Balance timings on the Storyboard tab, or change the seconds yourself.":"",bad0?bad0+" scene(s) have no time set.":""]);
+ var tw2=S.reduce(function(a,s){return a+words(s.voice)},0),limit=Math.floor(dur*WPS_MAX);
+ var over=S.map(function(s,i){return{i:i+1,w:words(s.voice),max:Math.floor((+s.secs||0)*WPS_MAX+.5)}}).filter(function(x){return x.w>x.max});
+ add("Script fits the time",tw2>limit?"fail":over.length?"warn":"pass",[tw2+" words against a limit of about "+limit+" ("+WPS_MAX+" words per second). Each placeholder counts as 5 words.",over.length?"Too long for its time: "+over.map(function(x){return"scene "+x.i+" ("+x.w+" words, about "+x.max+" fit)"}).join("; ")+".":"Every scene fits its time."]);
+ var longT=S.map(function(s,i){return{i:i+1,w:words(s.text),c:(s.text||"").length,secs:+s.secs||0}}).filter(function(x){return x.w>7||x.c>42||x.w/3>x.secs});
+ var noText=S.filter(function(s){return !clean(s.text)}).length,ratio=contrast(plan.look.text,plan.look.bg),capR=contrast(plan.look.accent,onAccent(plan.look));
+ var acc=[];
+ acc.push("Text on background contrast: "+ratio.toFixed(1)+":1"+(ratio<4.5?", below WCAG AA (4.5:1).":", meets WCAG AA."));
+ acc.push("Caption bar contrast: "+capR.toFixed(1)+":1"+(capR<4.5?", below WCAG AA (4.5:1).":", meets WCAG AA."));
+ if(longT.length)acc.unshift("Too much on-screen text: scene "+longT.map(function(x){return x.i}).join(", ")+". Aim for 7 words or fewer and 42 characters or fewer, with time to read it.");
+ else acc.unshift("On-screen text is short enough in every scene.");
+ if(noText)acc.push(noText+" scene(s) have no on-screen text.");
+ add("Readable text",ratio<4.5||capR<4.5||longT.length?"fail":noText?"warn":"pass",acc);
+ var last=S[S.length-1],hasC=clean(plan.cta)&&last&&clean(last.voice);
+ add("Call to action",!hasC?"fail":"pass",[hasC?"Final scene: "+clean(plan.cta).slice(0,90):"Add a call to action to the final scene.",plan.ctaSuggested?"This was suggested by a template. Change it if it doesn't fit.":""]);
+ var allText=[];S.forEach(function(s,i){allText.push({w:"scene "+(i+1),t:s.voice+" "+s.text})});plan.hooks.forEach(function(h){allText.push({w:HOOK_NAMES[h.type].toLowerCase()+" hook",t:h.say})});plan.captions.forEach(function(c,i){allText.push({w:"caption "+(i+1),t:c.text})});
+ var place=allText.filter(function(x){return hasPlace(x.t)}),claim=allText.filter(function(x){return CLAIM_RE.test(x.t.replace(/\[[^\]]*\]/g,""))}),nums=allText.filter(function(x){return /\d/.test(x.t.replace(/\[[^\]]*\]/g,"").replace(/\b(step|number)\s*\d/ig,""))});
+ var cItems=[];
+ if(place.length)cItems.push(place.length+" place(s) still need your own checked details: "+place.slice(0,6).map(function(x){return x.w}).join(", ")+(place.length>6?" and more":"")+".");
+ if(claim.length)cItems.push("Strong claim wording in: "+claim.slice(0,5).map(function(x){return x.w}).join(", ")+". Words like “always” or “proven” need strong evidence.");
+ if(nums.length)cItems.push("Numbers or dates appear in: "+nums.slice(0,5).map(function(x){return x.w}).join(", ")+". Check each one.");
+ if(plan.allFacts.length&&!plan.sources.length)cItems.push("You added facts but no source. Add where you checked them.");
+ cItems.push(plan.domCheck);
+ add("Claims to check",place.length||claim.length||nums.length||(plan.allFacts.length&&!plan.sources.length)?"warn":"pass",cItems);
+ var terms=String(b.avoid||"").split(/[,\n;]/).map(function(x){return clean(x).toLowerCase()}).filter(function(x){return x.length>2});
+ var hit=terms.filter(function(a){return allText.some(function(x){return x.t.toLowerCase().indexOf(a)>=0})});
+ if(terms.length)add("Things to avoid",hit.length?"warn":"pass",[hit.length?"These words still appear: "+hit.join(", ")+".":"None of your avoid words appear in the script, hooks or captions. Visuals still need your own check."]);
+ res.forEach(function(r){r.items=r.items.filter(Boolean)});
+ return res;
+}
+
+/* ---------- Prompts and plain text ---------- */
+function fmtT(s){return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2)}
+function sceneLines(plan,fields){var t=0;return plan.scenes.map(function(s,i){var a=t;t+=+s.secs||0;var out="Scene "+(i+1)+" ("+fmtT(a)+" to "+fmtT(t)+", "+s.secs+"s, "+s.label+")";fields.forEach(function(f){out+="\n  "+f[0]+": "+(clean(s[f[1]])||"[not set]")});return out}).join("\n")}
+function promptParts(plan){
+ var b=plan.brief,L=plan.look,T=TYPES.filter(function(x){return x.id===plan.typeId})[0],on=onAccent(L);
+ var kws=[b.kw1,b.kw2,b.kw3].map(clean).filter(Boolean).join(", ")||"not specified";
+ var basics=["Topic: "+clean(b.topic),"Audience: "+clean(b.audience),"Purpose: "+label("purpose",b.purpose),"Platform: "+label("platform",b.platform)+", vertical 9:16","Duration: "+b.duration+" seconds exactly","Tone: "+label("tone",b.tone),"Format: "+label("format",b.format)].join("\n");
+ var brand="Brand name: "+(clean(b.brand)||"none given")+"\nBrand keywords: "+kws+"\nLogo: "+plan.logo.direction+" Initials: "+(plan.logo.initials||"none")+".";
+ var col="Palette \""+L.name+"\": background "+L.bg+", text "+L.text+", accent "+L.accent+" (caption bars, logo, highlights) with "+on+" on top, support "+L.support+" (shapes and secondary details).";
+ var type="Typography: "+T.name+". Heading stack "+T.head.replace(/"/g,"")+", weight "+T.hw+", letter spacing "+T.ls+(T.up?", capitals":"")+". Body stack "+T.body.replace(/"/g,"")+", weight "+T.bw+". Use the closest available font if these are not installed.";
+ var acc="Accessibility: accurate subtitles for all speech; text contrast of at least 4.5:1; one or two caption lines; no flashing or strobing; never rely on colour alone; keep key text inside the central safe area, away from platform buttons (approximate, as interfaces vary).";
+ var av="Avoid: "+(clean(b.avoid)||"nothing specific listed")+". Also avoid invented statistics, misleading promises, unsupported claims, and copying existing brands, logos or characters.";
+ var facts=plan.allFacts.length||plan.sources.length?"Verified notes supplied by the student (the only factual claims allowed):\n- "+plan.allFacts.concat(plan.sources).join("\n- "):"No verified facts were supplied. Keep every [add a verified fact] placeholder and do not invent facts.";
+ var style="Visual style: "+STYLES[b.style].prompt+".";
+ var story="Story structure: "+plan.structure+".\nGuidance: "+plan.domNote+" "+plan.audNote;
+ if(plan.domId==="books")story+="\nSpoiler level: "+label("spoiler",b.spoiler)+". Angle: "+label("bookAngle",b.bookAngle)+".";
+ var full=sceneLines(plan,[["Visual","visual"],["Voiceover","voice"],["On-screen text","text"],["Transition","trans"]]);
+ var hook=plan.hooks[plan.hookIdx];
+ var out={};
+ out.brief="Act as a short-form video producer. Create a complete production plan from this brief. Keep every checked detail as written.\n\n"+basics+"\nCall to action: "+plan.cta+"\nOpening hook: "+hook.say+"\n\n"+story+"\n\n"+brand+"\n\n"+col+"\n"+type+"\n"+style+"\n\nStoryboard:\n"+full+"\n\nCaption: "+((plan.captions[0]||{}).text||"")+"\nHashtag suggestions (not live trending data): "+plan.tags.map(function(t){return t.text}).join(" ")+"\nFilming: "+plan.prod.filming.map(function(x){return x.text}).join(" ")+"\nLighting: "+plan.prod.lighting.map(function(x){return x.text}).join(" ")+"\nFraming: "+plan.prod.framing.map(function(x){return x.text}).join(" ")+"\nEditing: "+plan.prod.editing.map(function(x){return x.text}).join(" ")+"\nMusic mood (description only, no licensed track supplied): "+plan.prod.music.map(function(x){return x.text}).join(" ")+"\n\n"+acc+"\n"+av+"\n\n"+facts;
+ out.video="Create a vertical 9:16 video lasting exactly "+b.duration+" seconds for "+label("platform",b.platform)+". Generate each scene below at its stated length.\n\n"+basics+"\n\n"+style+"\n"+col+"\nBrand: "+(clean(b.brand)||"none given")+". Mood keywords: "+kws+".\n"+type+"\n\nScenes:\n"+sceneLines(plan,[["Shot","visual"],["Voiceover","voice"],["Lettering to add","text"],["Transition","trans"]])+"\n\nFallback for lettering: if this video tool cannot reproduce text accurately, do not generate any letters, captions or logos in the footage. Leave clean space in the central safe area, then add the exact lettering and captions during editing.\n\nDo not depict real people, brands or logos unless the student provides permission. Do not treat any [bracketed placeholder] as content: leave that part neutral until it is filled in.\n"+acc+"\n"+av+"\n\n"+facts;
+ out.image="Create a vertical 9:16 thumbnail or cover image for a short video.\n\nSubject: "+clean(b.topic)+"\nAudience: "+clean(b.audience)+"\nTone: "+label("tone",b.tone)+"\nFormat: "+label("format",b.format)+"\nDuration of the reel: "+b.duration+" seconds\n\nComposition, based on the opening scene: "+plan.scenes[0].visual+"\nSingle focal point in the central safe area. Leave clear space in the upper-middle for the headline.\nHeadline to add in editing: "+plan.scenes[0].text+"\nLater scene details to echo: "+plan.scenes.slice(1,3).map(function(s){return s.visual}).join(" ")+"\n\n"+style+"\n"+col+"\n"+type+"\n"+brand+"\n\nIf the image tool cannot render exact text, produce the image with no text and add the headline during editing.\n"+acc+"\n"+av;
+ out.logo="Design an original logo and small brand kit.\n\n"+brand+"\nUsed for: short videos about "+clean(b.topic)+"\nAudience: "+clean(b.audience)+"\nTone: "+label("tone",b.tone)+"\nFormat of videos: "+label("format",b.format)+", "+b.duration+" seconds\nFirst scene context: "+plan.scenes[0].visual+"\n\n"+style+"\n"+col+"\n"+type+"\n\nRequirements: simple geometric or monogram mark; readable at profile-picture size; works in one colour; supply a light and a dark version; shown as flat vector artwork. It must be original and must not resemble any existing brand, logo or character.\n"+acc+"\n"+av;
+ var wordRows=plan.scenes.map(function(s,i){return"Scene "+(i+1)+": "+s.secs+"s, at most "+Math.floor(s.secs*WPS_MAX+.5)+" words. "+s.label+". Draft: "+(clean(s.voice)||"[not set]")+" | On-screen text: "+(clean(s.text)||"[not set]")+" | Visual: "+clean(s.visual)}).join("\n");
+ out.script="Act as a scriptwriter for short-form video. Improve the draft below without adding facts.\n\n"+basics+"\nCall to action: "+plan.cta+"\nOpening hook to keep or sharpen: "+hook.say+"\n\n"+story+"\n\nScene word limits (about "+WPS_MAX+" words per second):\n"+wordRows+"\n\nWriting rules: natural spoken British English; short sentences; a clear opening, useful middle and satisfying ending; on-screen text of no more than 7 words per scene; keep every [placeholder] unless the verified notes provide the detail.\nStyle context: "+STYLES[b.style].prompt+". "+col+"\n"+type+"\nBrand: "+(clean(b.brand)||"none given")+". Keywords: "+kws+".\n"+acc+"\n"+av+"\n\n"+facts;
+ return out;
+}
+var PROMPT_META=[["brief","Full reel production brief","Everything in one brief, for a planner or a production team."],["video","Video-generation prompt","Scene-by-scene instructions, including what to do if lettering fails."],["image","Image or thumbnail prompt","One still image for the cover."],["logo","Logo and branding prompt","A brief for an original mark."],["script","Scriptwriting prompt","Asks for a better script within the word limits, without new facts."]];
+function currentPrompts(plan){var p=promptParts(plan);PROMPT_META.forEach(function(m){if(plan.promptEdits[m[0]]!=null)p[m[0]]=plan.promptEdits[m[0]]});return p}
+function planText(plan,checks){
+ var b=plan.brief,L=plan.look,T=TYPES.filter(function(x){return x.id===plan.typeId})[0],o=[];
+ function H(s){o.push("","=== "+s+" ===")}
+ o.push("REEL PROMPT STUDIO PLAN","Built with templates and design rules. No AI service was used.","","Topic: "+clean(b.topic),"Audience: "+clean(b.audience),"Purpose: "+label("purpose",b.purpose),"Platform: "+label("platform",b.platform),"Duration: "+b.duration+" seconds","Tone: "+label("tone",b.tone),"Format: "+label("format",b.format),"Visual style: "+label("style",b.style),"Brand: "+(clean(b.brand)||"none"),"Call to action: "+plan.cta);
+ H("HOOKS");plan.hooks.forEach(function(h,i){o.push((i===plan.hookIdx?"* ":"- ")+HOOK_NAMES[h.type]+": "+h.say+(h.visual?" (Shot: "+h.visual+")":""))});
+ H("STORYBOARD: "+plan.structure);o.push(sceneLines(plan,[["Visual","visual"],["Voiceover","voice"],["On-screen text","text"],["Transition","trans"]]));
+ H("BRANDING");plan.palettes.forEach(function(p){o.push(p.name+": background "+p.bg+", text "+p.text+", accent "+p.accent+", support "+p.support)});o.push("In use ("+L.name+"): background "+L.bg+", text "+L.text+", accent "+L.accent+", support "+L.support,"Contrast, text on background: "+contrast(L.text,L.bg).toFixed(1)+":1","Logo direction: "+plan.logo.direction);
+ H("TYPOGRAPHY");o.push(T.name+": "+T.pair,"Heading: "+T.head.replace(/"/g,""),"Body: "+T.body.replace(/"/g,""),"Installed fonts vary by device.");
+ H("CAPTIONS");plan.captions.forEach(function(c,i){o.push((i+1)+". "+c.text)});
+ H("HASHTAG SUGGESTIONS (not live trending data)");o.push(plan.tags.map(function(t){return t.text}).join(" "));
+ [["filming","FILMING"],["lighting","LIGHTING"],["framing","FRAMING"],["editing","EDITING"],["music","MUSIC MOODS (descriptions only, no licensed music supplied)"]].forEach(function(k){H(k[1]);plan.prod[k[0]].forEach(function(x){o.push("- "+x.text)})});
+ H("SUBTITLES AND ACCESSIBILITY");a11yList(plan).forEach(function(x){o.push("- "+x)});
+ var p=currentPrompts(plan);PROMPT_META.forEach(function(m){H("PROMPT: "+m[1].toUpperCase());o.push(p[m[0]])});
+ H("PLAN CHECK");checks.forEach(function(c){o.push("["+{pass:"OK",warn:"CHECK",fail:"FIX"}[c.status]+"] "+c.title);c.items.forEach(function(i){o.push("    "+i)})});
+ o.push("","Strong planning can improve a reel, but no tool can guarantee virality.");
+ return o.join("\n");
+}
+function a11yList(plan){var l=A11Y_BASE.slice(),b=plan.brief;if(b.style==="neon"||b.tone==="dramatic")l.push("Avoid flashing or strobing effects, which can be harmful for some viewers.");if(b.tone==="calm")l.push("Keep movement slow and avoid sudden loud sounds.");if(plan.audKind==="kids")l.push("Use larger captions and simpler words.");if(plan.domId==="music")l.push("Describe important sounds in captions, such as [soft piano begins].");if(b.format==="tutorial")l.push("Say each step aloud as well as showing it.");if(b.format==="myth")l.push("Label myth and fact in words, never only by red or green.");return l}
+
+/* ---------- DOM helper: all user text goes in as text nodes or values ---------- */
+var uidN=0;function uid(){return "u"+(++uidN)}
+function $(id){return document.getElementById(id)}
+function h(tag,a){var e=document.createElement(tag);if(a)Object.keys(a).forEach(function(k){var v=a[k];if(v==null||v===false)return;if(typeof v==="function")e.addEventListener(k.replace(/^on/,""),v);else if(k==="text")e.textContent=v;else if(k==="value")e.value=v;else e.setAttribute(k,v===true?"":v)});for(var i=2;i<arguments.length;i++){var c=arguments[i];if(c==null||c===false)continue;if(Array.isArray(c))c.forEach(function(x){if(x)e.appendChild(typeof x==="string"?document.createTextNode(x):x)});else e.appendChild(typeof c==="string"?document.createTextNode(c):c)}return e}
+var SVGNS="http://www.w3.org/2000/svg";
+function s(tag,a,txt){var e=document.createElementNS(SVGNS,tag);Object.keys(a||{}).forEach(function(k){e.setAttribute(k,a[k])});if(txt!=null)e.textContent=txt;return e}
+
+var plan=null,seed=0,cur=0,tab="hooks",playT=null,swatchMode="all",exI=0;
+var form=$("form"),sheet=$("sheet"),panels={},sceneRefs=[];
+var STORE="reelPromptStudio.draft.v1";
+var TABS=[["hooks","Hooks"],["board","Storyboard"],["brand","Branding"],["type","Typography"],["extras","Captions and production"],["prompts","Prompts"],["check","Plan Check"]];
+
+/* ---------- Form set-up ---------- */
+function pillsInit(){Array.prototype.forEach.call(document.querySelectorAll("[data-pills]"),function(box){var n=box.getAttribute("data-pills");OPTS[n].forEach(function(o,i){box.appendChild(h("label",null,h("input",{type:"radio",name:n,value:o[0],checked:i===0?true:null}),h("span",{text:o[1]})))})});
+ var def={purpose:"explain",platform:"reels",duration:"30",tone:"informative",format:"faceless",style:"playful",spoiler:"none",bookAngle:"review"};
+ Object.keys(def).forEach(function(k){setRadio(k,def[k])});
+ var d=$("domain");d.appendChild(h("option",{value:"auto",text:"Work it out from the topic"}));Object.keys(DOMAINS).forEach(function(k){d.appendChild(h("option",{value:k,text:DOMAINS[k].name}))})}
+function setRadio(n,v){var r=form.querySelector('input[name="'+n+'"][value="'+String(v).replace(/"/g,"")+'"]');if(r)r.checked=true}
+var TEXTF=["topic","audience","brand","kw1","kw2","kw3","colIn","colOut","cta","avoid","facts"],RADIOF=["purpose","platform","duration","tone","format","style","spoiler","bookAngle"];
+function readBrief(){var b={};TEXTF.forEach(function(k){b[k]=form.elements[k].value});RADIOF.forEach(function(k){var r=form.querySelector('input[name="'+k+'"]:checked');b[k]=r?r.value:OPTS[k][0][0]});b.domain=form.elements.domain.value;return b}
+function setForm(b){TEXTF.forEach(function(k){form.elements[k].value=b[k]==null?"":String(b[k])});RADIOF.forEach(function(k){if(b[k]!=null)setRadio(k,b[k])});if(b.domain!=null&&(b.domain==="auto"||DOMAINS[b.domain]))form.elements.domain.value=b.domain}
+function setErr(id,fieldId,msg){var e=$(id),f=$(fieldId);if(msg){e.textContent=msg;e.hidden=false;f.setAttribute("aria-invalid","true")}else{e.hidden=true;e.textContent="";f.removeAttribute("aria-invalid")}}
+function validate(focus){var b=readBrief(),t=clean(b.topic),a=clean(b.audience),first=null,tm=null,am=null;
+ if(!t)tm="Add a topic so the plan has something to be about. For example: why the Moon has phases.";
+ else if(!/[\p{L}\p{N}]/u.test(t))tm="Use at least one letter or number in the topic.";
+ else if(t.length<3)tm="Make the topic at least three characters long.";
+ if(!a)am="Say who this is for. For example: students aged 13 to 16.";
+ setErr("topicErr","topic",tm);setErr("audErr","audience",am);first=tm?"topic":am?"audience":null;
+ if(first&&focus){$(first).focus();toast(tm||am)}return !first}
+function liveHelp(){var b=readBrief(),t=clean(b.topic),d=detectDomain(t,b.domain),n=DOMAINS[d.id].name;
+ var help=$("domHelp");help.textContent=t?(b.domain==="auto"?(d.word?"Treated as "+n+" because it mentions “"+d.word+"”. ":"No keyword matched, so this uses General templates. ")+"These are simple keyword rules, so change this if it's wrong.":"Using "+n+" templates."):"Add a topic and this will pick the closest templates.";
+ $("bookFields").hidden=d.id!=="books";
+ var th=$("topicHelp");th.textContent=t.length>400?"Very long topic: only the first 400 characters are used. Try one short sentence.":t.length>60?"Long topic: it will be shortened in spoken lines and on-screen text, and kept in full in the prompts.":"";
+ var ci=parseColours(b.colIn),co=parseColours(b.colOut),u=ci.unknown.concat(co.unknown);$("colHelp").textContent=u.length?"Not recognised: "+u.join(", ")+". Use a common colour name or a HEX code such as #1A9E8F.":"Use colour names or HEX codes, separated by commas."}
+function normBrief(b){b=Object.assign({},b);b.topic=clean(b.topic).slice(0,400);b.audience=clean(b.audience).slice(0,120);return b}
+
+/* ---------- Generate ---------- */
+function generate(next){if(!validate(true))return false;var b=normBrief(readBrief());if(next)seed++;var old=plan;plan=buildPlan(b,seed,old);cur=0;stopPlay();renderAll();var kept=countPins();toast((next?"New version ready":"Plan generated")+(kept?". Kept items stayed in place.":"."));if(plan.sceneNote)toast(plan.sceneNote);if(window.innerWidth<=860)$("plan").scrollIntoView();return true}
+function countPins(){if(!plan)return 0;var n=0;function c(a){a.forEach(function(x){if(x.pinned)n++})}c(plan.hooks);c(plan.scenes);c(plan.palettes);c(plan.captions);c(plan.tags);Object.keys(plan.prod).forEach(function(k){c(plan.prod[k])});if(plan.logo.pinned)n++;if(plan.typePinned)n++;return n}
+function clearPins(){if(!plan){toast("Nothing is kept yet.");return}function c(a){a.forEach(function(x){x.pinned=false})}c(plan.hooks);c(plan.scenes);c(plan.palettes);c(plan.captions);c(plan.tags);Object.keys(plan.prod).forEach(function(k){c(plan.prod[k])});plan.logo.pinned=false;plan.typePinned=false;renderAll();toast("Kept items cleared.")}
+function pinCount(){var n=countPins();$("pinCount").textContent=plan?(n?n+" item"+(n===1?"":"s")+" kept for the next version.":"Press Keep on anything you want to survive Another Version."):""}
+var STAR='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.4 6.3 20.5l1.2-6.4L2.8 9.7l6.4-.8z"/></svg>';
+function pinBtn(get,set,what){var b=h("button",{type:"button",class:"pin","aria-pressed":get()?"true":"false","aria-label":(what||"item")+": keep when regenerating"});function paint(){b.innerHTML=STAR;b.appendChild(document.createTextNode(get()?"Kept":"Keep"));b.setAttribute("aria-pressed",get()?"true":"false")}paint();b.addEventListener("click",function(){set(!get());paint();pinCount()});return b}
+function pinObj(o,what){return pinBtn(function(){return !!o.pinned},function(v){o.pinned=v},what)}
+function rowsFor(t,w){return Math.max(2,Math.min(9,Math.ceil(String(t||"").length/(w||44))+1))}
+function area(o,k,lab,w,opts){var id=uid(),ta=h("textarea",{id:id,rows:rowsFor(o[k],w),dir:"auto"});ta.value=o[k];ta.addEventListener("input",function(){o[k]=ta.value;ta.rows=rowsFor(ta.value,w);if(opts&&opts.after)opts.after();onEdit()});if(opts&&opts.hidden){ta.setAttribute("aria-label",lab);return ta}return h("div",null,h("label",{for:id,class:"mini-lab",text:lab}),ta)}
+function onEdit(){renderPreview();renderCheck();refreshPrompts();refreshBoardMeta()}
+
+/* ---------- Tabs ---------- */
+function tabsInit(){var t=$("tabs");TABS.forEach(function(x){var b=h("button",{type:"button",role:"tab",class:"tab",id:"tab-"+x[0],"aria-controls":"panel-"+x[0],"aria-selected":"false",tabindex:"-1",onclick:function(){showTab(x[0])},text:x[1]});t.appendChild(b);var p=h("div",{role:"tabpanel",id:"panel-"+x[0],"aria-labelledby":"tab-"+x[0],tabindex:"0",hidden:true});panels[x[0]]=p;sheet.appendChild(p)});
+ t.addEventListener("keydown",function(e){var ids=TABS.map(function(x){return x[0]}),i=ids.indexOf(tab),n=null;if(e.key==="ArrowRight"||e.key==="ArrowDown")n=(i+1)%ids.length;else if(e.key==="ArrowLeft"||e.key==="ArrowUp")n=(i-1+ids.length)%ids.length;else if(e.key==="Home")n=0;else if(e.key==="End")n=ids.length-1;if(n!==null){e.preventDefault();showTab(ids[n]);$("tab-"+ids[n]).focus()}});showTab("hooks")}
+function showTab(id){tab=id;TABS.forEach(function(x){var on=x[0]===id,b=$("tab-"+x[0]);b.setAttribute("aria-selected",on?"true":"false");b.setAttribute("tabindex",on?"0":"-1");panels[x[0]].hidden=!on})}
+
+/* ---------- Render ---------- */
+function renderAll(){if(!plan){renderEmpty();renderPreview();return}renderHooks();renderBoard();renderBrand();renderType();renderExtras();renderPrompts();renderCheck();renderPreview();updateStale();pinCount();syncTabs()}
+function syncTabs(){showTab(tab)}
+function renderEmpty(){Object.keys(panels).forEach(function(k){panels[k].textContent=""});TABS.forEach(function(x){panels[x[0]].appendChild(h("div",{class:"empty"},h("h2",{text:"Your plan appears here"}),h("p",{text:"Fill in a topic and audience in your brief, then press Generate Plan. Or press Try an Example to see a finished plan."}),h("button",{type:"button",class:"btn alt",onclick:example,text:"Try an Example"})))});$("pinCount").textContent="";$("tab-check").textContent="Plan Check"}
+function renderHooks(){var p=panels.hooks;p.textContent="";p.appendChild(h("h2",{class:"sec",text:"Five ways to open"}));p.appendChild(h("p",{class:"lede",text:"Edit any line. The hook marked as your opening becomes the first spoken line in the storyboard."}));
+ plan.hooks.forEach(function(ho,i){var on=i===plan.hookIdx;p.appendChild(h("div",{class:"rowitem"},h("div",null,h("span",{class:"sticker s-"+(i+1),text:HOOK_NAMES[ho.type]})),h("div",null,area(ho,"say","Spoken line",60,{hidden:true,after:function(){if(i===plan.hookIdx&&!plan.scenes[0].pinned){plan.scenes[0].voice=ho.say;syncScene0()}}}),ho.type==="visual"?h("div",{style:"margin-top:8px"},area(ho,"visual","Opening shot",60)):null,h("p",{class:"why",text:ho.why})),h("div",{class:"stack"},h("button",{type:"button",class:"btn small quiet","aria-pressed":on?"true":"false",text:on?"Opening hook":"Use as opening",onclick:function(){useHook(i)}}),pinObj(ho,HOOK_NAMES[ho.type]+" hook"))))})}
+function useHook(i){plan.hookIdx=i;var ho=plan.hooks[i],sc=plan.scenes[0];if(!sc.pinned){sc.voice=ho.say;if(ho.visual)sc.visual=ho.visual}renderHooks();renderBoard();onEdit();toast("Opening hook updated in the storyboard.")}
+function syncScene0(){if(sceneRefs[0]){sceneRefs[0].voice.value=plan.scenes[0].voice}}
+function total(){return plan.scenes.reduce(function(a,x){return a+(+x.secs||0)},0)}
+function renderBoard(){var p=panels.board;p.textContent="";sceneRefs=[];
+ p.appendChild(h("h2",{class:"sec",text:"Timed storyboard"}));
+ p.appendChild(h("div",{class:"notebox"},h("strong",{text:"Structure: "+plan.structure+". "}),plan.domNote+" "+plan.audNote));
+ var strip=h("div",{class:"strip",id:"strip"}),tot=h("div",{class:"total",id:"totalSecs"});
+ p.appendChild(h("div",{class:"strip-head"},tot,h("div",{class:"row"},h("button",{type:"button",class:"btn small",text:"Balance timings",onclick:balance}),h("button",{type:"button",class:"btn small",text:"Add scene",onclick:addScene}))));
+ p.appendChild(strip);
+ plan.scenes.forEach(function(sc,i){var clock=h("div",{class:"clock"}),meter=h("p",{class:"meter","aria-live":"off"}),tm=h("p",{class:"meter"});
+  var secId=uid(),secI=h("input",{id:secId,class:"secs",type:"number",min:"1",max:"60",step:"1",value:String(sc.secs)});
+  secI.addEventListener("input",function(){sc.secs=Math.max(0,parseInt(secI.value,10)||0);onEdit()});
+  var vo=area(sc,"voice","Spoken words or voiceover",40,{after:function(){if(i===0)plan.hooks[plan.hookIdx].say=sc.voice}});
+  var row=h("div",{class:"scene",id:"scene-"+i},h("div",{class:"side"},clock,h("div",{class:"beat",text:sc.label}),h("div",null,h("label",{for:secId,class:"mini-lab",text:"Seconds"}),secI),h("div",{class:"stack"},pinObj(sc,"Scene "+(i+1)),plan.scenes.length>2?h("button",{type:"button",class:"btn small quiet",text:"Remove","aria-label":"Remove scene "+(i+1),onclick:function(){removeScene(i)}}):null)),
+   h("div",{class:"fields"},area(sc,"visual","Visual",40),h("div",null,vo,meter),h("div",null,area(sc,"text","On-screen text",40),tm),area(sc,"trans","Transition",40)));
+  row.addEventListener("focusin",function(){if(cur!==i){cur=i;renderPreview();paintStrip()}});
+  p.appendChild(row);sceneRefs.push({clock:clock,meter:meter,tm:tm,voice:vo.querySelector("textarea")})});
+ refreshBoardMeta()}
+function paintStrip(){var st=$("strip");if(!st)return;Array.prototype.forEach.call(st.children,function(c,i){c.setAttribute("aria-current",i===cur?"true":"false")})}
+function refreshBoardMeta(){var st=$("strip");if(!st||!plan)return;st.textContent="";var t=0,dur=+readBrief().duration,sum=total();
+ plan.scenes.forEach(function(sc,i){var w=Math.max(.5,+sc.secs||0);var seg=h("button",{type:"button",class:"seg",style:"flex:"+w+" 1 0","aria-label":"Preview scene "+(i+1)+", "+sc.secs+" seconds","aria-current":i===cur?"true":"false",text:sc.secs+"s",onclick:function(){cur=i;renderPreview();paintStrip();var r=$("scene-"+i);if(r)r.scrollIntoView({block:"nearest"})}});st.appendChild(seg);
+  var a=t;t+=+sc.secs||0;var ref=sceneRefs[i];if(ref){ref.clock.textContent=fmtT(a)+"–"+fmtT(t);var wd=words(sc.voice),mx=Math.floor((+sc.secs||0)*WPS_MAX+.5),ok=wd<=mx;ref.meter.className="meter "+(ok?"st-ok":"st-bad");ref.meter.textContent=(ok?"✓ ":"! ")+wd+" words, about "+mx+" fit";var tw=words(sc.text),okT=tw<=7&&sc.text.length<=42;ref.tm.className="meter "+(okT?"st-ok":"st-warn");ref.tm.textContent=(okT?"✓ ":"! ")+tw+" words on screen"}});
+ var okS=sum===dur,tEl=$("totalSecs");tEl.className="total "+(okS?"st-ok":"st-bad");tEl.textContent=(okS?"✓ ":"! ")+sum+" of "+dur+" seconds"}
+function balance(){var dur=+readBrief().duration,S=plan.scenes,tot=total();var raw=S.map(function(x){return tot>0?(+x.secs||0)*dur/tot:dur/S.length});var fl=raw.map(function(r){return Math.max(1,Math.floor(r))}),left=dur-fl.reduce(function(a,b){return a+b},0);var ord=raw.map(function(r,i){return[r-Math.floor(r),i]}).sort(function(a,b){return b[0]-a[0]}),i=0;while(left>0){fl[ord[i%ord.length][1]]++;left--;i++}i=0;while(left<0){var j=ord[ord.length-1-(i%ord.length)][1];if(fl[j]>1){fl[j]--;left++}i++;if(i>500)break}S.forEach(function(x,k){x.secs=fl[k]});renderBoard();onEdit();toast("Timings balanced to "+dur+" seconds.")}
+function addScene(){var at=Math.max(1,plan.scenes.length-1);plan.scenes.splice(at,0,{beat:"extra",label:"New scene",secs:3,visual:"",voice:"",text:"",trans:"Clean cut",pinned:false});cur=at;renderBoard();onEdit();toast("Scene added before the ending. Use Balance timings to fit the duration.")}
+function removeScene(i){plan.scenes.splice(i,1);if(cur>=plan.scenes.length)cur=plan.scenes.length-1;renderBoard();onEdit();toast("Scene removed. Use Balance timings to fit the duration.")}
+
+/* ---------- Branding ---------- */
+function applySwatch(pi,role){var p=plan.palettes[pi];plan.palIdx=pi;if(swatchMode==="all"||!role){plan.look=pick4(p)}else{plan.look[swatchMode]=p[role];plan.look.name="Custom mix"}renderBrand();onEdit();toast(swatchMode==="all"?"Palette applied to the preview.":"Colour applied to the preview.")}
+var ROLE_INFO=[["bg","Background"],["text","Text"],["accent","Accent"],["support","Support"]];
+function aaRow(name,fg,bg,need,use){var r=contrast(fg,bg),ok=r>=need;return h("tr",null,h("td",null,h("span",{class:"demo-chip",style:"background:"+bg+";color:"+fg,text:"Aa"})," "+name),h("td",{text:r.toFixed(2)+":1"}),h("td",{text:need+":1 ("+use+")"}),h("td",{class:ok?"st-ok":"st-bad"},h("strong",{text:ok?"✓ Pass":"! Below AA"})))}
+function renderBrand(){var p=panels.brand;p.textContent="";var L=plan.look;
+ p.appendChild(h("h2",{class:"sec",text:"Branding kit"}));
+ p.appendChild(h("p",{class:"lede",text:"Background fills the frame. Text is for headlines and body copy. Accent is for caption bars, the logo and highlights. Support is for shapes and secondary details."}));
+ var modes=h("div",{class:"pills",role:"radiogroup","aria-label":"What a swatch click changes"});
+ [["all","Whole palette"],["bg","Background only"],["text","Text only"],["accent","Accent only"]].forEach(function(m){modes.appendChild(h("label",null,h("input",{type:"radio",name:"swMode",value:m[0],checked:swatchMode===m[0]?true:null,onchange:function(){swatchMode=m[0]}}),h("span",{text:m[1]})))});
+ p.appendChild(h("div",{class:"modes"},h("span",{class:"mini-lab",text:"Clicking a swatch changes"}),modes));
+ var grid=h("div",{class:"pal-grid"});
+ plan.palettes.forEach(function(pal,i){var on=i===plan.palIdx&&L.name===pal.name,sw=h("div",{class:"sw-row"});
+  ROLE_INFO.forEach(function(r){var b=h("button",{type:"button",class:"sw","aria-label":"Use "+r[1]+" "+pal[r[0]]+" from "+pal.name,onclick:function(){applySwatch(i,r[0])}},h("i",{style:"background:"+pal[r[0]]}),h("b",{text:r[1]}),h("code",{text:pal[r[0]]}));sw.appendChild(b)});
+  grid.appendChild(h("div",{class:"pal"+(on?" on":"")},h("div",{class:"row spread"},h("h4",{text:(on?"✓ ":"")+pal.name}),pinObj(pal,pal.name+" palette")),sw,h("p",{class:"why",text:pal.why}),h("button",{type:"button",class:"btn small",text:on?"In the preview":"Use this palette","aria-pressed":on?"true":"false",onclick:function(){plan.palIdx=i;plan.look=pick4(pal);renderBrand();onEdit();toast("Palette applied to the preview.")}})))});
+ p.appendChild(grid);
+ var cols=h("div",{class:"cols"});ROLE_INFO.forEach(function(r){var id=uid();var inp=h("input",{id:id,type:"color",value:L[r[0]].toLowerCase()});inp.addEventListener("input",function(){plan.look[r[0]]=inp.value.toUpperCase();plan.look.name="Custom mix";refreshContrast();onEdit()});cols.appendChild(h("label",{for:id},r[1],inp))});
+ var tb=h("div",{id:"ctTable"});
+ var logoBox=h("div",{class:"logo-view",id:"logoView"}),iniId=uid(),shId=uid(),nmId=uid();
+ var ini=h("input",{id:iniId,type:"text",maxlength:"3",value:plan.logo.initials,dir:"auto"});ini.addEventListener("input",function(){plan.logo.initials=ini.value;drawLogo();onEdit()});
+ var sel=h("select",{id:shId});LOGO_SHAPES.forEach(function(o){sel.appendChild(h("option",{value:o[0],selected:o[0]===plan.logo.shape?true:null,text:o[1]}))});sel.addEventListener("change",function(){plan.logo.shape=sel.value;drawLogo();onEdit()});
+ var nm=h("input",{id:nmId,type:"checkbox",checked:plan.logo.showName?true:null,style:"width:20px;height:20px"});nm.addEventListener("change",function(){plan.logo.showName=nm.checked;drawLogo();onEdit()});
+ p.appendChild(h("div",{class:"two"},
+  h("div",null,h("h3",{class:"sub",text:"Colours in the preview"}),cols,tb,h("p",{class:"help",text:"WCAG AA needs 4.5:1 for normal text and 3:1 for large text and graphics."})),
+  h("div",null,h("div",{class:"row spread"},h("h3",{class:"sub",text:"Logo"}),pinObj(plan.logo,"Logo")),
+   h("p",{class:"why",style:"margin-bottom:10px",text:plan.logo.direction}),
+   h("div",{class:"logo-box"},logoBox,h("div",{class:"logo-ctl"},
+    h("div",null,h("label",{for:iniId,class:"mini-lab",text:"Letters (up to 3)"}),ini),
+    h("div",{style:"margin-top:8px"},h("label",{for:shId,class:"mini-lab",text:"Shape"}),sel),
+    h("label",{for:nmId,class:"row",style:"margin:9px 0;font-weight:700;font-size:14.5px"},nm,"Show the brand name"),
+    h("button",{type:"button",class:"btn small",text:"Download SVG Logo",onclick:downloadLogo}))),
+   h("p",{class:"help",text:"This is a starting point. Check that it doesn't resemble an existing logo. The letters use your device's fonts, so convert them to outlines in a design tool for final use."}))));
+ refreshContrast();drawLogo()}
+function refreshContrast(){var t=$("ctTable");if(!t)return;t.textContent="";var L=plan.look,on=onAccent(L);t.appendChild(h("table",{class:"contrast"},h("thead",null,h("tr",null,h("th",{scope:"col",text:"Pair"}),h("th",{scope:"col",text:"Ratio"}),h("th",{scope:"col",text:"Target"}),h("th",{scope:"col",text:"Result"}))),h("tbody",null,aaRow("Text on background",L.text,L.bg,4.5,"text"),aaRow("Accent on background",L.accent,L.bg,3,"large text, graphics"),aaRow("Caption on accent",on,L.accent,4.5,"text"))))}
+function logoSVG(logo,L,brand,pal){var showN=logo.showName&&clean(brand),H=showN?256:200,on=onAccent(L);var svg=s("svg",{xmlns:SVGNS,viewBox:"0 0 200 "+H,width:"400",height:String(H*2),role:"img"});svg.appendChild(s("title",{},(clean(brand)||"Logo")+" logo"));
+ var a=L.accent,g=s("g",{});
+ if(logo.shape==="circle")g.appendChild(s("circle",{cx:100,cy:100,r:94,fill:a}));
+ else if(logo.shape==="squircle")g.appendChild(s("rect",{x:8,y:8,width:184,height:184,rx:48,fill:a}));
+ else if(logo.shape==="hexagon")g.appendChild(s("polygon",{points:"100,4 186,52 186,148 100,196 14,148 14,52",fill:a}));
+ else if(logo.shape==="diamond")g.appendChild(s("polygon",{points:"100,2 198,100 100,198 2,100",fill:a}));
+ else if(logo.shape==="split"){g.appendChild(s("circle",{cx:100,cy:100,r:94,fill:L.support,stroke:a,"stroke-width":6}));g.appendChild(s("path",{d:"M100 6a94 94 0 0 0 0 188z",fill:a}))}
+ else if(logo.shape==="arch")g.appendChild(s("path",{d:"M14 192V100a86 86 0 0 1 172 0v92z",fill:a}));
+ else{g.appendChild(s("rect",{x:6,y:20,width:188,height:160,rx:12,fill:a}));[150,162].forEach(function(y){g.appendChild(s("rect",{x:6,y:y,width:188,height:6,fill:on}))})}
+ svg.appendChild(g);
+ var txt=Array.from(clean(logo.initials)).slice(0,3).join(""),n=Array.from(txt).length,fs=n<=1?104:n===2?82:58;if(logo.shape==="diamond")fs*=.76;
+ var fill2=logo.shape==="split"?(contrast(L.text,a)>=contrast(L.bg,a)?L.text:L.bg):on,yy=logo.shape==="bars"?92:logo.shape==="arch"?122:100;
+ var tEl=s("text",{x:100,y:yy,"text-anchor":"middle",dy:".35em",fill:fill2,"font-family":"Arial Black, Helvetica Neue, Arial, sans-serif","font-size":fs,"font-weight":"800"},txt);
+ svg.appendChild(tEl);
+ if(logo.shape==="split"){tEl.setAttribute("paint-order","stroke");tEl.setAttribute("stroke",a);tEl.setAttribute("stroke-width","8")}
+ if(showN){var nmT=clean(brand);var ch=Array.from(nmT);if(ch.length>18)nmT=ch.slice(0,17).join("")+"…";var plate=s("rect",{x:0,y:206,width:200,height:50,rx:8,fill:L.bg});svg.appendChild(plate);svg.appendChild(s("text",{x:100,y:231,"text-anchor":"middle",dy:".35em",fill:L.text,"font-family":"Helvetica Neue, Arial, sans-serif","font-size":Math.min(26,300/Math.max(6,Array.from(nmT).length)),"font-weight":"700"},nmT))}
+ return svg}
+function drawLogo(){var v=$("logoView");if(!v)return;v.textContent="";v.appendChild(logoSVG(plan.logo,plan.look,readBrief().brand))}
+function slug(t){return clean(t).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40)||"reel"}
+function saveFile(name,text,type){try{var blob=new Blob([text],{type:type}),url=URL.createObjectURL(blob),a=h("a",{href:url,download:name});document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},2000);toast(name+" downloaded.");return true}catch(e){manualCopy(text);return false}}
+function downloadLogo(){var x=new XMLSerializer().serializeToString(logoSVG(plan.logo,plan.look,readBrief().brand));saveFile("logo-"+slug(readBrief().brand||plan.brief.topic)+".svg",'<?xml version="1.0" encoding="UTF-8"?>\n'+x,"image/svg+xml")}
+
+/* ---------- Typography ---------- */
+function renderType(){var p=panels.type;p.textContent="";p.appendChild(h("div",{class:"row spread"},h("h2",{class:"sec",text:"Typography"}),pinBtn(function(){return plan.typePinned},function(v){plan.typePinned=v},"Selected typography")));
+ p.appendChild(h("p",{class:"lede",text:"These use fonts already on the device, so the app works offline. Each device shows the closest font it has, and no particular font is promised. Sizes are for a 1080 by 1920 frame."}));
+ var head=plan.scenes[0].text||tinyTopic(plan.brief.topic),list=h("div",{class:"type-list"});
+ plan.typeOrder.forEach(function(id,idx){var T=TYPES.filter(function(x){return x.id===id})[0],on=id===plan.typeId,why=plan.typeWhy[id]||[];
+  list.appendChild(h("div",{class:"type"+(on?" on":"")},
+   h("div",null,h("h4",{text:(on?"✓ ":"")+T.name}),why.length?h("div",{class:"tag",text:"Suggested for: "+why.map(function(w){return w}).join(", ")}):null,
+    h("p",{class:"sample",dir:"auto",style:"font-family:"+T.head.replace(/"/g,"'")+";font-weight:"+T.hw+";letter-spacing:"+T.ls+";font-size:"+Math.round(T.hs*.42)+"px;line-height:1.05;"+(T.up?"text-transform:uppercase;":""),text:head}),
+    h("p",{style:"font-family:"+T.body.replace(/"/g,"'")+";font-weight:"+T.bw+";font-size:"+Math.round(T.bs*.42)+"px",text:"Body and caption sample: keep it short enough to read in one glance."})),
+   h("div",null,h("ul",{class:"specs"},h("li",null,h("b",{text:"Heading: "}),T.hs+"px, weight "+T.hw+", spacing "+T.ls+(T.up?", capitals":"")),h("li",null,h("b",{text:"Body: "}),T.bs+"px, weight "+T.bw),h("li",null,h("b",{text:"Pairing: "}),T.pair)),
+    h("button",{type:"button",class:"btn small",style:"margin-top:9px","aria-pressed":on?"true":"false",text:on?"In the preview":"Use in preview",onclick:function(){plan.typeId=id;renderType();onEdit();toast(T.name+" applied to the preview.")}}))))});
+ p.appendChild(list)}
+
+/* ---------- Captions and production ---------- */
+function ideaSec(title,list,note){var d=h("div",{class:"idea-sec"},h("h3",{class:"sub",text:title}));if(note)d.appendChild(h("p",{class:"help",style:"margin-bottom:8px",text:note}));list.forEach(function(it){d.appendChild(h("div",{class:"idea"},area(it,"text",title+" idea",70,{hidden:true}),pinObj(it,title+" idea")))});return d}
+function setCta(c){plan.cta=c;plan.ctaSuggested=false;var last=plan.scenes[plan.scenes.length-1];if(!last.pinned){last.voice=c;last.text=ctaShort(c)}form.elements.cta.value=c;plan.brief.cta=c;renderBoard();renderExtras();onEdit();toast("Call to action updated.")}
+function renderExtras(){var p=panels.extras;p.textContent="";p.appendChild(h("h2",{class:"sec",text:"Captions and production"}));
+ p.appendChild(h("div",{class:"idea-sec",style:"margin-top:8px"},h("h3",{class:"sub",text:"Three captions"}),plan.captions.map(function(c,i){return h("div",{class:"idea"},area(c,"text","Caption "+(i+1),70,{hidden:true}),pinObj(c,"Caption "+(i+1)))})));
+ var tg=h("div",{class:"tags"});plan.tags.forEach(function(t,i){var id=uid();var inp=h("input",{id:id,type:"text",value:t.text,dir:"auto","aria-label":"Hashtag suggestion "+(i+1)});inp.addEventListener("input",function(){t.text=inp.value;onEdit()});tg.appendChild(h("div",{class:"tagrow"},inp,pinObj(t,"Hashtag "+(i+1))))});
+ p.appendChild(h("div",{class:"idea-sec"},h("h3",{class:"sub",text:"Five hashtag suggestions"}),h("p",{class:"help",style:"margin-bottom:8px",text:"These are suggestions from templates, not live trending data."}),tg));
+ var ctaL=h("div",{class:"ctalist"});plan.ctaOpts.slice(0,4).forEach(function(c){ctaL.appendChild(h("div",{class:"row"},h("span",{text:c}),h("button",{type:"button",class:"btn small quiet",text:"Use","aria-label":"Use call to action: "+c,onclick:function(){setCta(c)}})))});
+ p.appendChild(h("div",{class:"idea-sec"},h("h3",{class:"sub",text:"Other calls to action"}),ctaL));
+ p.appendChild(ideaSec("Filming",plan.prod.filming));p.appendChild(ideaSec("Lighting",plan.prod.lighting));p.appendChild(ideaSec("Framing",plan.prod.framing));p.appendChild(ideaSec("Editing",plan.prod.editing));
+ p.appendChild(ideaSec("Music mood",plan.prod.music,"Mood descriptions only. This app doesn't supply licensed music. Use your platform's library or tracks you have permission to use."));
+ p.appendChild(h("div",{class:"idea-sec"},h("h3",{class:"sub",text:"Subtitles and accessible design"}),h("ul",{class:"a11y"},a11yList(plan).map(function(x){return h("li",{text:x})}))))}
+
+/* ---------- Prompts ---------- */
+var promptEls={};
+function renderPrompts(){var p=panels.prompts;p.textContent="";promptEls={};p.appendChild(h("h2",{class:"sec",text:"Copyable prompts"}));p.appendChild(h("p",{class:"lede",text:"These update as you edit the plan. Copy one into any tool you choose. Nothing is sent anywhere automatically."}));
+ var P=currentPrompts(plan);PROMPT_META.forEach(function(m){var id=uid(),ta=h("textarea",{id:id,dir:"auto"});ta.value=P[m[0]];var re=h("button",{type:"button",class:"btn small quiet",text:"Rebuild from plan",hidden:plan.promptEdits[m[0]]==null?true:null,onclick:function(){delete plan.promptEdits[m[0]];re.hidden=true;refreshPrompts();toast(m[1]+" rebuilt.")}});
+  ta.addEventListener("input",function(){plan.promptEdits[m[0]]=ta.value;re.hidden=false});
+  promptEls[m[0]]=ta;
+  p.appendChild(h("div",{class:"prompt"},h("div",{class:"row spread"},h("div",null,h("h3",{class:"sub",style:"margin:0"},h("label",{for:id,text:m[1]})),h("p",{class:"help",style:"margin:0",text:m[2]})),h("div",{class:"row"},re,h("button",{type:"button",class:"btn small",text:"Copy","aria-label":"Copy "+m[1],onclick:function(){copyText(ta.value,m[1])}}))),ta))})}
+function refreshPrompts(){if(!plan)return;var P=currentPrompts(plan);Object.keys(promptEls).forEach(function(k){if(document.activeElement!==promptEls[k]&&promptEls[k].value!==P[k])promptEls[k].value=P[k]})}
+
+/* ---------- Plan Check ---------- */
+function renderCheck(){if(!plan)return;var p=panels.check,res=checkPlan(plan,normBrief(readBrief())),pass=res.filter(function(r){return r.status==="pass"}).length,attn=res.length-pass;p.textContent="";
+ p.appendChild(h("h2",{class:"sec",text:"Plan Check"}));p.appendChild(h("p",{class:"summary",text:pass+" of "+res.length+" checks passed"+(attn?", "+attn+" to look at":"")}));p.appendChild(h("p",{class:"lede",text:"These are fixed rules applied to your plan, and they aren't a score."}));
+ var B={pass:["✓ Pass","st-ok"],warn:["! Check","st-warn"],fail:["✕ Fix","st-bad"]};
+ res.forEach(function(r){p.appendChild(h("div",{class:"chk"},h("span",{class:"badge "+B[r.status][1],text:B[r.status][0]}),h("div",null,h("h3",{text:r.title}),h("ul",null,r.items.map(function(x){return h("li",{text:x})})))))});
+ p.appendChild(h("p",{class:"finalnote",text:"Strong planning can improve a reel, but no tool can guarantee virality."}));
+ $("tab-check").textContent="Plan Check"+(attn?" ("+attn+")":"")}
+function updateStale(){if(!plan){$("stale").hidden=true;return}var a=JSON.stringify(normBrief(readBrief())),b=JSON.stringify(plan.brief);$("stale").hidden=a===b}
+
+/* ---------- Preview ---------- */
+var ART={
+ minimalist:'<svg viewBox="0 0 90 160" preserveAspectRatio="none" aria-hidden="true"><rect x="5" y="150" width="28" height="1.2" style="fill:var(--r-accent)"/></svg>',
+ monochrome:'<svg viewBox="0 0 90 160" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><defs><pattern id="ht" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.2" style="fill:var(--r-support)"/></pattern><linearGradient id="fd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></linearGradient><mask id="mk"><rect width="90" height="42" fill="url(#fd)"/></mask></defs><rect width="90" height="42" fill="url(#ht)" mask="url(#mk)"/><rect y="118" width="90" height="42" fill="url(#ht)"/></svg>',
+ neon:'<svg viewBox="0 0 90 160" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><g style="stroke:var(--r-accent);fill:none" stroke-width=".5" opacity=".75"><path d="M0 124H90M0 132H90M0 142H90M0 154H90M45 118L-30 160M45 118L0 160M45 118L30 160M45 118L60 160M45 118L90 160M45 118L120 160"/></g><circle cx="74" cy="17" r="10" style="fill:none;stroke:var(--r-support)" stroke-width=".7" opacity=".85"/></svg>',
+ editorial:'<svg viewBox="0 0 90 160" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><rect y="0" width="90" height="4" style="fill:var(--r-accent)"/><rect y="126" width="90" height="34" style="fill:var(--r-support)"/></svg>',
+ retro:'<svg viewBox="0 0 90 160" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><circle cx="90" cy="0" r="30" style="fill:var(--r-accent)" opacity=".9"/><circle cx="90" cy="0" r="20" style="fill:var(--r-support)"/><g style="fill:var(--r-accent)"><rect y="130" width="90" height="4"/></g><g style="fill:var(--r-support)"><rect y="137" width="90" height="4"/></g><g style="fill:var(--r-accent)"><rect y="144" width="90" height="16"/></g></svg>',
+ cinematic:'<svg viewBox="0 0 90 160" aria-hidden="true" preserveAspectRatio="none"><defs><radialGradient id="vg" cx=".5" cy=".5" r=".75"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient></defs><rect width="90" height="160" fill="url(#vg)"/><rect width="90" height="10" fill="#000"/><rect y="150" width="90" height="10" fill="#000"/></svg>',
+ playful:'<svg viewBox="0 0 90 160" aria-hidden="true" preserveAspectRatio="xMidYMid slice"><circle cx="82" cy="10" r="16" style="fill:var(--r-support)"/><path d="M0 138c14-10 26 6 42-2s28-6 48 2v22H0z" style="fill:var(--r-accent)"/><rect x="62" y="122" width="10" height="10" rx="2" transform="rotate(18 67 127)" style="fill:var(--r-support)"/></svg>'
+};
+function renderPreview(){var b=readBrief(),L,T,sc=null,logo;
+ if(plan){L=plan.look;T=TYPES.filter(function(x){return x.id===plan.typeId})[0];sc=plan.scenes[cur]||plan.scenes[0];logo=plan.logo}
+ else{var c=PALETTES.filter(function(p){return p[5]===b.style})[0];L=pick4(toPal(c));T=TYPES[0];logo={initials:initialsFrom(clean(b.brand)||clean(b.topic)||"Reel Prompt"),shape:"squircle",showName:false}}
+ var r=$("reel"),sa=PLAT_SAFE[b.platform];
+ r.style.setProperty("--r-bg",L.bg);r.style.setProperty("--r-text",L.text);r.style.setProperty("--r-accent",L.accent);r.style.setProperty("--r-support",L.support);r.style.setProperty("--r-on",onAccent(L));
+ ["st","sb","sr","sl"].forEach(function(k){r.style.setProperty("--"+k,sa[k]+"%")});
+ $("reelArt").innerHTML=ART[b.style];
+ var lg=$("reelLogo");lg.textContent="";lg.appendChild(logoSVG(Object.assign({},logo,{showName:false}),L,b.brand));
+ var hd=sc?(clean(sc.text)||"Add on-screen text"):(tinyTopic(clean(b.topic))||"Your headline here");
+ var el=$("reelHead"),n=hd.length,f=n<=14?1:n<=24?.82:n<=36?.66:.52;
+ el.textContent=hd;el.style.fontFamily=T.head.replace(/"/g,"'");el.style.fontWeight=T.hw;el.style.letterSpacing=T.ls;el.style.textTransform=T.up?"uppercase":"none";el.style.setProperty("--hs",(T.hs/1080*1.5*f).toFixed(4));
+ var nm=clean(b.brand);$("reelName").textContent=nm;
+ var k=[b.kw1,b.kw2,b.kw3].map(clean).filter(Boolean).join(" + ");$("reelKws").textContent=k;
+ var cp=sc?clean(sc.voice):"Captions appear here";var ws=cp.split(" ");if(ws.length>11)cp=ws.slice(0,11).join(" ")+"…";if(cp.length>90)cp=cp.slice(0,88)+"…";
+ var ce=$("reelCap");ce.textContent=cp||"Add spoken words";
+ $("reelZones").hidden=!$("safeToggle").checked;
+ var total2=plan?plan.scenes.length:0;
+ $("readout").textContent=plan?"Scene "+(cur+1)+" of "+total2+", "+(sc.secs||0)+" seconds":"Preview updates as you change the brief";
+ r.setAttribute("aria-label","Reel preview. Headline: "+hd+". Caption: "+cp);
+ ["btnPrev","btnPlay","btnNext"].forEach(function(id){$(id).disabled=!plan});
+ paintStrip()}
+function step(d){if(!plan)return;cur=(cur+d+plan.scenes.length)%plan.scenes.length;renderPreview()}
+function stopPlay(){if(playT){clearTimeout(playT);playT=null}$("btnPlay").textContent="Play"}
+function play(){if(!plan)return;if(playT){stopPlay();return}cur=0;$("btnPlay").textContent="Pause";renderPreview();(function next(){playT=setTimeout(function(){if(cur>=plan.scenes.length-1){stopPlay();return}cur++;renderPreview();next()},Math.max(1,+plan.scenes[cur].secs||1)*1000)})()}
+
+/* ---------- Copy, toast, draft ---------- */
+var tT;function toast(m){var t=$("toast");t.textContent=m;t.hidden=false;clearTimeout(tT);tT=setTimeout(function(){t.hidden=true},3200)}
+function legacyCopy(text){var act=document.activeElement,ta=h("textarea",{style:"position:fixed;left:-9999px;top:0","aria-hidden":"true",readonly:true});ta.value=text;(document.querySelector("dialog[open]")||document.body).appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand("copy")}catch(e){ok=false}ta.remove();if(act&&act.focus)act.focus();return ok}
+function manualCopy(text){var d=$("manual"),t=$("manualText");t.value=text;if(d.showModal){if(!d.open)d.showModal()}else d.setAttribute("open","");t.focus();t.select()}
+function copyText(text,lab){function done(){toast(lab+" copied.")}function fallback(){if(legacyCopy(text))done();else manualCopy(text)}
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done,fallback)}else fallback()}
+function allText(){return planText(plan,checkPlan(plan,normBrief(readBrief())))}
+function needPlan(){if(plan)return true;toast("Generate a plan first. Press Generate Plan or Try an Example.");return false}
+function storageOK(){try{var k=STORE+".t";localStorage.setItem(k,"1");localStorage.removeItem(k);return true}catch(e){return false}}
+function saveDraft(){if(!storageOK()){toast("This browser is blocking saved drafts. Use Download Plan to keep a copy.");return}try{localStorage.setItem(STORE,JSON.stringify({v:1,brief:readBrief(),seed:seed,plan:plan}));toast("Draft saved in this browser.")}catch(e){toast("The draft couldn't be saved. Use Download Plan to keep a copy.")}}
+function clearDraft(){if(!storageOK()){toast("This browser is blocking saved drafts, so there is nothing to clear.");return}try{localStorage.removeItem(STORE);toast("Saved draft cleared.")}catch(e){toast("The saved draft couldn't be cleared.")}}
+function validPlan(p){return p&&Array.isArray(p.hooks)&&p.hooks.length===5&&Array.isArray(p.scenes)&&p.scenes.length>0&&Array.isArray(p.palettes)&&p.palettes.length===3&&p.look&&/^#[0-9a-fA-F]{6}$/.test(p.look.bg)&&/^#[0-9a-fA-F]{6}$/.test(p.look.text)&&/^#[0-9a-fA-F]{6}$/.test(p.look.accent)&&/^#[0-9a-fA-F]{6}$/.test(p.look.support)&&p.logo&&p.prod&&p.brief&&Array.isArray(p.captions)&&Array.isArray(p.tags)&&TYPES.some(function(t){return t.id===p.typeId})}
+function loadDraft(){if(!storageOK()){$("draftNote").textContent="Saving is unavailable in this browser, so use Download Plan to keep a copy. The rest of the app still works.";return}try{var raw=localStorage.getItem(STORE);if(!raw)return;var d=JSON.parse(raw);if(!d||d.v!==1||!d.brief)return;setForm(d.brief);seed=+d.seed||0;if(validPlan(d.plan)){plan=d.plan;plan.promptEdits=plan.promptEdits||{}}toast("Saved draft restored.")}catch(e){}}
+function example(){var ex=EXAMPLES[exI%EXAMPLES.length];exI++;setForm(ex);plan=null;seed=0;liveHelp();setErr("topicErr","topic",null);setErr("audErr","audience",null);generate(false);toast("Example loaded: "+ex.topic+". Press again for another.")}
+
+/* ---------- Wire up ---------- */
+pillsInit();tabsInit();loadDraft();liveHelp();renderAll();
+form.addEventListener("submit",function(e){e.preventDefault();generate(false)});
+form.addEventListener("input",function(e){if(e.target.id==="topic"&&clean(e.target.value))setErr("topicErr","topic",null);if(e.target.id==="audience"&&clean(e.target.value))setErr("audErr","audience",null);liveHelp();renderPreview();updateStale();if(plan){renderCheck();refreshBoardMeta();drawLogo()}});
+$("btnAnother").addEventListener("click",function(){generate(true)});$("btnStale").addEventListener("click",function(){generate(false)});
+$("btnExample").addEventListener("click",example);$("btnClearPins").addEventListener("click",clearPins);$("btnSave").addEventListener("click",saveDraft);$("btnClearDraft").addEventListener("click",clearDraft);
+$("btnPrev").addEventListener("click",function(){stopPlay();step(-1)});$("btnNext").addEventListener("click",function(){stopPlay();step(1)});$("btnPlay").addEventListener("click",play);$("safeToggle").addEventListener("change",renderPreview);
+$("btnCopyAll").addEventListener("click",function(){if(needPlan())copyText(allText(),"Everything")});
+$("btnDownload").addEventListener("click",function(){if(needPlan())saveFile("reel-plan-"+slug(plan.brief.topic)+".txt",allText(),"text/plain;charset=utf-8")});
+$("manualClose").addEventListener("click",function(){var d=$("manual");if(d.close)d.close();else d.removeAttribute("open")});
+
+})();
+</script>
+</body>
+</html>
